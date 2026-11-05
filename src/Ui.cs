@@ -1067,12 +1067,25 @@ namespace AkkuAnzeige
                 {
                     ch.BackColor = d ? Color.FromArgb(38, 38, 38) : SystemColors.Window;
                     ch.ForeColor = d ? Fore(d) : SystemColors.WindowText;
-                    try { SetWindowTheme(ch.Handle, d ? "DarkMode_Explorer" : "Explorer", null); } catch { } // Scrollleisten
+                    // Scrollleisten-Design erst, wenn die Liste wirklich angelegt ist – ein vorzeitiger Zugriff auf
+                    // .Handle bei versteckten Reitern fuehrt sonst dazu, dass die Liste nie gezeichnet wird.
+                    listDark[ch] = d;
+                    if (ch.IsHandleCreated) ApplyListTheme(ch);
+                    else if (!listHooked.Contains(ch)) { listHooked.Add(ch); ch.HandleCreated += (s, e) => ApplyListTheme((Control)s); }
                     ch.Invalidate();
                 }
                 else if (ch is TrackBar || ch is ColorRangeBar) { ch.BackColor = bg; ch.ForeColor = Dim(d); }
                 ApplyRec(ch, d, childBg);
             }
+        }
+
+        static readonly Dictionary<Control, bool> listDark = new Dictionary<Control, bool>();
+        static readonly HashSet<Control> listHooked = new HashSet<Control>();
+        static void ApplyListTheme(Control c)
+        {
+            bool d;
+            if (!listDark.TryGetValue(c, out d)) return;
+            try { SetWindowTheme(c.Handle, d ? "DarkMode_Explorer" : "Explorer", null); } catch { }
         }
 
         // Spaltenkoepfe selbst zeichnen (sonst bleiben sie im dunklen Modus hell)
@@ -1690,7 +1703,7 @@ namespace AkkuAnzeige
                 }
             };
             btnStd.Click += delegate { cmbSound.SelectedIndex = 0; };
-            var lblSoundHint = new Label { Text = L.T("Windows-Sounds im Menü oder eigene Datei (WAV, MP3, WMA, M4A, AAC). Lautstärke gilt für jedes Ausgabegerät."), Bounds = new Rectangle(14, 126, 600, 18), ForeColor = Color.DimGray };
+            var lblSoundHint = new Label { Text = L.T("Windows-Sound im Menü oder eigene Datei (WAV, MP3, WMA, M4A, AAC)."), Bounds = new Rectangle(14, 126, 600, 18), ForeColor = Color.DimGray };
             gSound.Controls.AddRange(new Control[] { lblVol, trkVol, btnPlay, lblFile, cmbSound, btnBrowse, btnStd, lblSoundHint });
 
             new ToolTip { AutoPopDelay = 20000 }.SetToolTip(chkMin, L.K("OPT_INFO",

@@ -107,7 +107,7 @@ namespace AkkuAnzeige
             { "Standard", "Default" },
             { "Alarm-Sounddatei wählen", "Choose alarm sound file" },
             { "Audiodateien", "Audio files" }, { "Alle Dateien", "All files" },
-            { "Windows-Sounds im Menü oder eigene Datei (WAV, MP3, WMA, M4A, AAC). Lautstärke gilt für jedes Ausgabegerät.", "Windows sounds in the menu or your own file (WAV, MP3, WMA, M4A, AAC). Volume applies to every output device." },
+            { "Windows-Sound im Menü oder eigene Datei (WAV, MP3, WMA, M4A, AAC).", "Windows sound from the menu or your own file (WAV, MP3, WMA, M4A, AAC)." },
             { "Standard-Warnton (Akku-Anzeige)", "Default warning tone (Battery Display)" },
             { "Eigene Datei: {0}", "Own file: {0}" },
             { " (nicht gefunden)", " (not found)" },

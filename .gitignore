@@ -6,6 +6,9 @@ cert/
 AkkuAnzeige.ico
 AkkuAnzeige-Desktop.ico
 
+# lokales Screenshot-Hilfsskript
+docs/shot_helper.ps1
+
 # Sicherungen
 *.bak
 *.bak2

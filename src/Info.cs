@@ -75,6 +75,49 @@ namespace AkkuAnzeige
         }
     }
 
+    // Laedt ein Bild aus einer .ico-Datei – auch PNG-komprimierte Groessen (kann System.Drawing.Icon nicht)
+    public static class IconTools
+    {
+        public static Bitmap FromIco(byte[] ico, int size)
+        {
+            try
+            {
+                int count = BitConverter.ToUInt16(ico, 4);
+                int best = -1, bestSize = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    int w = ico[6 + 16 * i]; if (w == 0) w = 256;
+                    // kleinste Groesse >= gewuenscht, sonst die groesste
+                    if (best < 0 || (w >= size && (bestSize < size || w < bestSize)) || (bestSize < size && w > bestSize)) { best = i; bestSize = w; }
+                }
+                int len = BitConverter.ToInt32(ico, 6 + 16 * best + 8);
+                int off = BitConverter.ToInt32(ico, 6 + 16 * best + 12);
+                bool png = ico[off] == 0x89 && ico[off + 1] == 0x50 && ico[off + 2] == 0x4E && ico[off + 3] == 0x47;
+                Bitmap src;
+                if (png) src = new Bitmap(new MemoryStream(ico, off, len));
+                else using (var ic = new Icon(new MemoryStream(ico), bestSize, bestSize)) src = ic.ToBitmap();
+                var res = new Bitmap(size, size);
+                using (var g = Graphics.FromImage(res))
+                {
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    g.DrawImage(src, 0, 0, size, size);
+                }
+                src.Dispose();
+                return res;
+            }
+            catch { return null; }
+        }
+
+        public static byte[] Resource(string name)
+        {
+            using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream(name))
+            {
+                if (s == null) return null;
+                var ms = new MemoryStream(); s.CopyTo(ms); return ms.ToArray();
+            }
+        }
+    }
+
     class InfoForm : Form
     {
         Label lblUpdate;
@@ -92,7 +135,8 @@ namespace AkkuAnzeige
             Icon = ctx.WindowIcon;
 
             var pic = new PictureBox { Bounds = new Rectangle(20, 20, 64, 64), SizeMode = PictureBoxSizeMode.Zoom };
-            try { pic.Image = new Icon(ctx.WindowIcon, 64, 64).ToBitmap(); } catch { }
+            var icoBytes = IconTools.Resource("AkkuAnzeige.win.ico");
+            if (icoBytes != null) pic.Image = IconTools.FromIco(icoBytes, 64);
             var lblName = new Label { Text = "Akku-Anzeige", Font = new Font("Segoe UI Semibold", 16f), Bounds = new Rectangle(98, 18, 440, 34) };
             var lblVer = new Label { Text = L.F("Version {0}", AppInfo.VersionText), Bounds = new Rectangle(100, 54, 440, 20) };
             var lblPub = new Label { Text = L.F("Hersteller: {0}", AppInfo.Publisher) + "   ·   " + AppInfo.PoweredBy, Bounds = new Rectangle(100, 76, 440, 20) };
@@ -100,23 +144,27 @@ namespace AkkuAnzeige
             var lblDesc = new Label { Text = L.T("Akkustände von Maus, Tastatur, Kopfhörern und weiteren drahtlosen Geräten direkt auf der Taskleiste."), Bounds = new Rectangle(20, 132, 520, 36) };
 
             var gSrc = new GroupBox { Text = L.T("Datenquellen") + " / " + L.T("Erkannte Hersteller-Software"), Bounds = new Rectangle(14, 172, 532, 240) };
-            var lv = new ListView { View = View.Details, FullRowSelect = true, MultiSelect = false, HeaderStyle = ColumnHeaderStyle.Nonclickable, Bounds = new Rectangle(10, 22, 512, 208) };
-            lv.Columns.Add("Software", 150);
-            lv.Columns.Add("Status", 140);
-            lv.Columns.Add(L.T("Info"), 200);
-            Theme.OwnerDrawHeader(lv);
+            // einfache Zeilen statt ListView (zuverlaessig in hell und dunkel)
+            var list = new Panel { Bounds = new Rectangle(10, 22, 512, 208), AutoScroll = true };
             bool en = L.Current == "en";
-            lv.Items.Add(new ListViewItem(new[] { L.T("Windows-Bluetooth (eingebaut)"), Links.Enabled(Links.Bluetooth) ? L.T("verknüpft") : L.T("nicht verknüpft"), L.T("Akkustand von Bluetooth-Geräten (Kopfhörer, Lautsprecher, Handys …)") }));
+            int y = 4;
+            Action<string, string, string> row = (name, status, note) =>
+            {
+                list.Controls.Add(new Label { Text = name, Bounds = new Rectangle(4, y, 250, 18), Font = new Font("Segoe UI Semibold", 9f), AutoEllipsis = true });
+                list.Controls.Add(new Label { Text = status, Bounds = new Rectangle(258, y, 240, 18), AutoEllipsis = true });
+                list.Controls.Add(new Label { Text = note, Bounds = new Rectangle(4, y + 18, 490, 18), ForeColor = Color.DimGray, AutoEllipsis = true });
+                y += 44;
+            };
+            row(L.T("Windows-Bluetooth (eingebaut)"), Links.Enabled(Links.Bluetooth) ? L.T("verknüpft") : L.T("nicht verknüpft"),
+                L.T("Akkustand von Bluetooth-Geräten (Kopfhörer, Lautsprecher, Handys …)"));
             foreach (var v in Vendors.Detect(true))
             {
                 bool ok = v.Support == VendorSupport.Supported;
                 string st = (v.Running ? L.T("läuft") : L.T("installiert")) + " · " +
                             (ok ? (Links.Enabled(v.Key) ? L.T("verknüpft") : L.T("nicht verknüpft")) : L.T("nicht kompatibel"));
-                string name = v.Name + (string.IsNullOrEmpty(v.Version) ? "" : " " + v.Version);
-                var it = new ListViewItem(new[] { name, st, en ? v.NoteEn : v.NoteDe }) { Tag = v };
-                lv.Items.Add(it);
+                row(v.Name + (string.IsNullOrEmpty(v.Version) ? "" : " " + v.Version), st, en ? v.NoteEn : v.NoteDe);
             }
-            gSrc.Controls.Add(lv);
+            gSrc.Controls.Add(list);
 
             btnUpdate = new Button { Text = L.T("Nach Updates suchen"), Bounds = new Rectangle(20, 428, 170, 32) };
             var btnWeb = new Button { Text = L.T("Website öffnen"), Bounds = new Rectangle(198, 428, 150, 32) };
