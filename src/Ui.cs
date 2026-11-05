@@ -342,7 +342,7 @@ namespace AkkuAnzeige
         {
             menu.Items.Clear();
             menu.Items.Add(L.T("Einstellungen …"), null, delegate { ShowSettings(); });
-            menu.Items.Add(L.T("Info …"), null, delegate { using (var f = new InfoForm(this, Theme.SystemAppsDark() && Settings.ThemeAuto || (!Settings.ThemeAuto && Settings.ThemeDark))) f.ShowDialog(); });
+            menu.Items.Add(L.T("Info …"), null, delegate { ShowSettings(); if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.ShowInfo(); });
             menu.Items.Add(L.T("Jetzt aktualisieren"), null, delegate { Poll(); });
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(L.T("Beenden"), null, delegate { Quit(); });
@@ -1038,7 +1038,16 @@ namespace AkkuAnzeige
             {
                 Color childBg = bg;
                 if (ch is SimpleTabs) { ((SimpleTabs)ch).SetColors(d); childBg = Page(d); }
-                else if (ch is MonitorPage || (ch is Panel && ch.Parent != null && ch.Parent.Parent is SimpleTabs)) { ch.BackColor = Page(d); ch.ForeColor = Fore(d); childBg = Page(d); }
+                else if (ch is MonitorPage || (ch is Panel && ch.Parent != null && ch.Parent.Parent is SimpleTabs))
+                {
+                    ch.BackColor = Page(d); ch.ForeColor = Fore(d); childBg = Page(d);
+                    if (((ScrollableControl)ch).AutoScroll) // scrollbare Seite: Bildlaufleiste im passenden Design
+                    {
+                        listDark[ch] = d;
+                        if (ch.IsHandleCreated) ApplyListTheme(ch);
+                        else if (listHooked.Add(ch)) ch.HandleCreated += (s, e) => ApplyListTheme((Control)s);
+                    }
+                }
                 else if (ch is GroupBox) { ch.ForeColor = Fore(d); }
                 else if (ch is Label)
                 {
@@ -1060,6 +1069,9 @@ namespace AkkuAnzeige
                     cb.FlatStyle = d ? FlatStyle.Flat : FlatStyle.Standard;
                     cb.BackColor = d ? Input(d) : SystemColors.Window;
                     cb.ForeColor = d ? Fore(d) : SystemColors.WindowText;
+                    comboDark[cb] = d;
+                    if (comboHooked.Add(cb)) OwnerDrawCombo(cb);
+                    cb.Invalidate();
                 }
                 else if (ch is NumericUpDown) { ch.BackColor = d ? Input(d) : SystemColors.Window; ch.ForeColor = d ? Fore(d) : SystemColors.WindowText; }
                 else if (ch is TextBox) { ch.BackColor = d ? Input(d) : SystemColors.Window; ch.ForeColor = d ? Fore(d) : SystemColors.WindowText; }
@@ -1077,6 +1089,29 @@ namespace AkkuAnzeige
                 else if (ch is TrackBar || ch is ColorRangeBar) { ch.BackColor = bg; ch.ForeColor = Dim(d); }
                 ApplyRec(ch, d, childBg);
             }
+        }
+
+        // Auswahlfelder selbst zeichnen: Windows malt ausgegraute Felder sonst immer hell mit schwarzer Schrift
+        static readonly Dictionary<ComboBox, bool> comboDark = new Dictionary<ComboBox, bool>();
+        static readonly HashSet<ComboBox> comboHooked = new HashSet<ComboBox>();
+        static void OwnerDrawCombo(ComboBox cb)
+        {
+            cb.DrawMode = DrawMode.OwnerDrawFixed;
+            cb.EnabledChanged += (s, e) => cb.Invalidate();
+            cb.DrawItem += (s, e) =>
+            {
+                bool d;
+                comboDark.TryGetValue(cb, out d);
+                bool sel = (e.State & DrawItemState.Selected) != 0 && (e.State & DrawItemState.ComboBoxEdit) == 0;
+                Color bg, fg;
+                if (!cb.Enabled) { bg = d ? Color.FromArgb(45, 45, 45) : SystemColors.Control; fg = d ? Fore(d) : SystemColors.GrayText; } // dunkel: weiss wie alle Texte
+                else if (sel) { bg = d ? Color.FromArgb(0, 84, 153) : SystemColors.Highlight; fg = d ? Color.White : SystemColors.HighlightText; }
+                else { bg = d ? Input(d) : SystemColors.Window; fg = d ? Fore(d) : SystemColors.WindowText; }
+                using (var b = new SolidBrush(bg)) e.Graphics.FillRectangle(b, e.Bounds);
+                string text = e.Index >= 0 ? cb.GetItemText(cb.Items[e.Index]) : "";
+                TextRenderer.DrawText(e.Graphics, text, cb.Font, new Rectangle(e.Bounds.X + 3, e.Bounds.Y, e.Bounds.Width - 4, e.Bounds.Height), fg,
+                    TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine);
+            };
         }
 
         static readonly Dictionary<Control, bool> listDark = new Dictionary<Control, bool>();
@@ -1651,8 +1686,8 @@ namespace AkkuAnzeige
             tabs.AddPage(gen);
 
             // --- Einstellungen (Programm + Darstellung) ---
-            var opt = new Panel { Text = L.T("Einstellungen") };
-            var gProg = new GroupBox { Text = L.T("Programm"), Bounds = new Rectangle(8, 10, 624, 128) };
+            var opt = new Panel { Text = L.T("Einstellungen"), AutoScroll = true }; // scrollbar – Platz fuer weitere Bereiche
+            var gProg = new GroupBox { Text = L.T("Programm"), Bounds = new Rectangle(8, 10, 608, 128) };
             chkAuto = new CheckBox { Text = L.T("Mit Windows starten"), Bounds = new Rectangle(12, 24, 400, 24), Checked = AppCtx.AutostartEnabled };
             chkMin = new CheckBox { Text = L.T("Minimiert starten (nur die Kacheln, ohne dieses Fenster)"), Bounds = new Rectangle(12, 52, 500, 24), Checked = ctx.Settings.StartMinimized };
             var lblClose = new Label { Text = L.T("Beim Schließen des Fensters (X):"), Bounds = new Rectangle(14, 90, 200, 20) };
@@ -1661,12 +1696,12 @@ namespace AkkuAnzeige
             cmbClose.SelectedIndex = ctx.Settings.CloseExits ? 1 : 0;
             gProg.Controls.AddRange(new Control[] { chkAuto, chkMin, lblClose, cmbClose });
 
-            var gTheme = new GroupBox { Text = L.T("Darstellung"), Bounds = new Rectangle(8, 148, 624, 134) };
+            var gTheme = new GroupBox { Text = L.T("Darstellung"), Bounds = new Rectangle(8, 148, 608, 134) };
             var lblLang = new Label { Text = L.T("Sprache:"), Bounds = new Rectangle(14, 100, 200, 20) };
             cmbLang = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Bounds = new Rectangle(224, 96, 140, 24) };
             foreach (var kv in L.Languages) cmbLang.Items.Add(kv.Value);
             cmbLang.SelectedIndex = Math.Max(0, Array.FindIndex(L.Languages, kv => kv.Key == ctx.Settings.Language));
-            var lblLangHint = new Label { Text = L.T("Die Sprache wird nach \"Übernehmen\" sofort umgestellt."), Bounds = new Rectangle(372, 100, 245, 30), ForeColor = Color.DimGray };
+            var lblLangHint = new Label { Text = L.T("Die Sprache wird nach \"Übernehmen\" sofort umgestellt."), Bounds = new Rectangle(372, 100, 228, 30), ForeColor = Color.DimGray };
             chkThemeAuto = new CheckBox { Text = L.T("Fensterdesign automatisch an Windows anpassen (heller / dunkler Modus)"), Bounds = new Rectangle(12, 24, 600, 24), Checked = ctx.Settings.ThemeAuto };
             lblThemeMan = new Label { Text = L.T("Design, wenn nicht automatisch:"), Bounds = new Rectangle(32, 62, 190, 20) };
             cmbTheme = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Bounds = new Rectangle(224, 58, 140, 24) };
@@ -1677,23 +1712,23 @@ namespace AkkuAnzeige
             cmbTheme.SelectedIndexChanged += delegate { ApplyTheme(); };
 
             // Alarm-Ton: Lautstaerke + eigene Sounddatei
-            var gSound = new GroupBox { Text = L.T("Alarm-Ton"), Bounds = new Rectangle(8, 292, 624, 152) };
+            var gSound = new GroupBox { Text = L.T("Alarm-Ton"), Bounds = new Rectangle(8, 292, 608, 152) };
             lblVol = new Label { Bounds = new Rectangle(14, 24, 400, 20) };
             trkVol = new TrackBar { Minimum = 0, Maximum = 100, TickFrequency = 10, SmallChange = 5, LargeChange = 10, Bounds = new Rectangle(12, 44, 440, 45), Value = Math.Max(0, Math.Min(100, ctx.Settings.AlarmVolume)) };
             trkVol.ValueChanged += delegate { UpdateVolLabel(); };
             UpdateVolLabel();
-            var btnPlay = new Button { Text = L.T("▶  Ton testen"), Bounds = new Rectangle(466, 44, 146, 32) };
+            var btnPlay = new Button { Text = L.T("▶  Ton testen"), Bounds = new Rectangle(450, 44, 146, 32) };
             btnPlay.Click += delegate { AlarmSound.Play(soundFile, trkVol.Value); };
             var lblFile = new Label { Text = L.T("Sound:"), Bounds = new Rectangle(14, 98, 80, 20) };
-            cmbSound = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Bounds = new Rectangle(96, 95, 310, 24), MaxDropDownItems = 20 };
+            cmbSound = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Bounds = new Rectangle(96, 95, 294, 24), MaxDropDownItems = 20 };
             FillSounds(ctx.Settings.AlarmFile);
             cmbSound.SelectedIndexChanged += delegate
             {
                 var si = cmbSound.SelectedItem as SoundItem;
                 soundFile = si != null ? si.Path : null;
             };
-            var btnBrowse = new Button { Text = L.T("Durchsuchen …"), Bounds = new Rectangle(412, 93, 100, 28) };
-            var btnStd = new Button { Text = L.T("Standard"), Bounds = new Rectangle(518, 93, 94, 28) };
+            var btnBrowse = new Button { Text = L.T("Durchsuchen …"), Bounds = new Rectangle(396, 93, 100, 28) };
+            var btnStd = new Button { Text = L.T("Standard"), Bounds = new Rectangle(502, 93, 94, 28) };
             btnBrowse.Click += delegate
             {
                 using (var dlg = new OpenFileDialog { Title = L.T("Alarm-Sounddatei wählen"), Filter = L.T("Audiodateien") + " (*.wav;*.mp3;*.wma;*.m4a;*.aac)|*.wav;*.mp3;*.wma;*.m4a;*.aac|" + L.T("Alle Dateien") + " (*.*)|*.*" })
@@ -1712,21 +1747,38 @@ namespace AkkuAnzeige
                        "Die Akku-Kacheln auf der Taskleiste passen sich immer automatisch an die Farbe der Taskleiste an."));
 
             // Datenquellen: welche (kompatiblen, installierten) Programme mit der Akku-Anzeige verknuepft sind
-            var gSrc = new GroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 624, 112) };
+            var gSrc = new GroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 608, 112) };
             int sx = 12, sy = 24;
             var srcs = new List<KeyValuePair<string, string>> { new KeyValuePair<string, string>(Links.Bluetooth, L.T("Windows-Bluetooth (eingebaut)")) };
             foreach (var v in Vendors.Detect(true).Where(x => x.Support == VendorSupport.Supported))
                 srcs.Add(new KeyValuePair<string, string>(v.Key, v.Name));
             foreach (var kv in srcs)
             {
-                var cb = new CheckBox { Text = kv.Value, Tag = kv.Key, Checked = Links.Enabled(kv.Key), Bounds = new Rectangle(sx, sy, 296, 24) };
+                var cb = new CheckBox { Text = kv.Value, Tag = kv.Key, Checked = Links.Enabled(kv.Key), Bounds = new Rectangle(sx, sy, 280, 24) };
                 srcChecks.Add(cb);
                 gSrc.Controls.Add(cb);
                 if (sx == 12) sx = 316; else { sx = 12; sy += 26; }
             }
-            var lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 86, 600, 18), ForeColor = Color.DimGray };
+            var lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 86, 584, 18), ForeColor = Color.DimGray };
             gSrc.Controls.Add(lblSrcHint);
-            opt.Controls.AddRange(new Control[] { gProg, gTheme, gSound, gSrc });
+            // Info: Version, Hersteller, Update-Suche (frueher eigenes Fenster)
+            gInfo = new GroupBox { Text = L.T("Info"), Bounds = new Rectangle(8, 576, 608, 176) };
+            var pic = new PictureBox { Bounds = new Rectangle(14, 26, 56, 56), SizeMode = PictureBoxSizeMode.Zoom };
+            var icoBytes = IconTools.Resource("AkkuAnzeige.win.ico");
+            if (icoBytes != null) pic.Image = IconTools.FromIco(icoBytes, 56);
+            var lblApp = new Label { Text = "Akku-Anzeige", Font = new Font("Segoe UI Semibold", 13f), Bounds = new Rectangle(82, 22, 500, 26) };
+            var lblVer = new Label { Text = L.F("Version {0}", AppInfo.VersionText) + "   ·   " + L.F("Hersteller: {0}", AppInfo.Publisher), Bounds = new Rectangle(84, 50, 510, 18) };
+            var lblPow = new Label { Text = "© " + AppInfo.Year + " " + AppInfo.Publisher + "   ·   " + AppInfo.PoweredBy, Bounds = new Rectangle(84, 70, 510, 18), ForeColor = Color.DimGray };
+            var btnUpd = new Button { Text = L.T("Nach Updates suchen"), Bounds = new Rectangle(14, 96, 170, 30) };
+            var btnWeb = new Button { Text = L.T("Website öffnen"), Bounds = new Rectangle(190, 96, 150, 30) };
+            var lblUpd = new Label { Bounds = new Rectangle(14, 132, 584, 36) };
+            btnUpd.Click += delegate { UpdateUi.Check(this, btnUpd, lblUpd); };
+            btnWeb.Click += delegate { UpdateUi.OpenWebsite(lblUpd); };
+            gInfo.Controls.AddRange(new Control[] { pic, lblApp, lblVer, lblPow, btnUpd, btnWeb, lblUpd });
+            var spacer = new Label { Bounds = new Rectangle(8, 752, 10, 12) }; // etwas Abstand unten beim Scrollen
+
+            opt.Controls.AddRange(new Control[] { gProg, gTheme, gSound, gSrc, gInfo, spacer });
+            optPage = opt;
             tabs.AddPage(opt);
 
             // --- unten ---
@@ -1734,9 +1786,6 @@ namespace AkkuAnzeige
             var btnOk = new Button { Text = "OK", Bounds = new Rectangle(384, 634, 88, 30) };
             var btnApply = new Button { Text = L.T("Übernehmen"), Bounds = new Rectangle(478, 634, 88, 30) };
             var btnClose = new Button { Text = L.T("Abbrechen"), Bounds = new Rectangle(572, 634, 88, 30) };
-            var btnInfo = new Button { Text = "ⓘ  " + L.T("Info"), Bounds = new Rectangle(188, 634, 90, 30) };
-            btnInfo.Click += delegate { using (var f = new InfoForm(ctx, DarkWanted())) f.ShowDialog(this); };
-            Controls.Add(btnInfo);
             btnIdent.Click += delegate { Identify(); };
             btnOk.Click += delegate { if (!ApplyAll(false)) return; buttonClose = true; Close(); };
             btnApply.Click += delegate { ApplyAll(true); };
@@ -1782,7 +1831,9 @@ namespace AkkuAnzeige
         // Design sofort anwenden (gespeichert wird mit Übernehmen/OK)
         public void ApplyTheme()
         {
-            lblThemeMan.Enabled = cmbTheme.Enabled = !chkThemeAuto.Checked;
+            cmbTheme.Enabled = !chkThemeAuto.Checked;
+            // Beschriftung nicht ausgrauen (das zeichnet Windows dunkel), sondern nur gedaempft einfaerben
+            lblThemeMan.Tag = chkThemeAuto.Checked ? "dim" : "fg";
             if (!IsHandleCreated) return;
             bool dark = DarkWanted();
             SuspendLayout();
@@ -1797,6 +1848,17 @@ namespace AkkuAnzeige
         bool ready; // erst nach dem Anzeigen auf Aenderungen reagieren
 
         public void SelectTab(int i) { tabs.SelectIndex(i); }
+
+        GroupBox gInfo;
+        Panel optPage;
+
+        // Reiter "Einstellungen" oeffnen und zum Info-Bereich scrollen
+        public void ShowInfo()
+        {
+            if (optPage == null) return;
+            tabs.SelectPage(optPage);
+            optPage.ScrollControlIntoView(gInfo);
+        }
 
         public void Changed()
         {

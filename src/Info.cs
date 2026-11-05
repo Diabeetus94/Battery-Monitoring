@@ -22,56 +22,129 @@ namespace AkkuAnzeige
         public const string GitHubRepo = "Diabeetus94/Battery-Monitoring";
         public const string Stage = "Alpha"; // leer lassen fuer eine fertige Version
 
+        // Update-Info (geheimer, nicht gelisteter Gist – auch lesbar, solange das Projekt privat ist)
+        public const string UpdateManifestUrl = "https://gist.githubusercontent.com/Diabeetus94/7de64f002a597e3182acb41eb0c31912/raw/akku-anzeige-update.json";
+
         public static Version Version { get { return Assembly.GetExecutingAssembly().GetName().Version; } }
-        public static string VersionText { get { var v = Version; return v.Major + "." + v.Minor + "." + v.Build + (Stage.Length > 0 ? " " + Stage : ""); } }
+        public static string Format(Version v) { return v.Major + "." + v.Minor + "." + Math.Max(0, v.Build) + (v.Revision > 0 ? "." + v.Revision : ""); }
+        public static string VersionText { get { return Format(Version) + (Stage.Length > 0 ? " " + Stage : ""); } }
         public static string Website { get { return GitHubRepo.Length > 0 ? "https://github.com/" + GitHubRepo : null; } }
     }
 
-    // Fragt GitHub nach dem neuesten Release (Tag z.B. "v1.3.0")
+    // Sucht nach einer neueren Version: zuerst in der Update-Info (Gist), sonst in den GitHub-Releases
     public static class UpdateChecker
     {
         public class Result { public bool Ok; public bool NewerAvailable; public string Latest; public string Url; public string Error; }
 
+        static string Get(string url, string accept)
+        {
+            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+            var req = (HttpWebRequest)WebRequest.Create(url + (url.Contains("?") ? "&" : "?") + "t=" + DateTime.UtcNow.Ticks); // ohne Zwischenspeicher
+            req.UserAgent = "AkkuAnzeige-UpdateCheck";
+            if (accept != null) req.Accept = accept;
+            req.Timeout = 8000;
+            req.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.NoCacheNoStore);
+            using (var resp = req.GetResponse())
+            using (var sr = new StreamReader(resp.GetResponseStream())) return sr.ReadToEnd();
+        }
+
+        // "v1.2.0.1-alpha" / "1.2.0.1" -> Version (fehlende Teile = 0)
+        static Version Parse(string s)
+        {
+            var m = Regex.Match(s ?? "", @"(\d+)\.(\d+)(?:\.(\d+))?(?:\.(\d+))?");
+            if (!m.Success) return null;
+            return new Version(int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value),
+                               m.Groups[3].Success ? int.Parse(m.Groups[3].Value) : 0, m.Groups[4].Success ? int.Parse(m.Groups[4].Value) : 0);
+        }
+
+        static Version Normalize(Version v) { return new Version(v.Major, v.Minor, Math.Max(0, v.Build), Math.Max(0, v.Revision)); }
+
         public static Result Check()
         {
             var r = new Result();
-            if (AppInfo.GitHubRepo.Length == 0) { r.Error = "NO_REPO"; return r; }
+            Version latest = null;
+            string stage = "";
+            var js = new System.Web.Script.Serialization.JavaScriptSerializer();
+
+            // 1) Update-Info (Gist)
             try
             {
-                ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
-                // Liste statt /latest, damit auch Vorab-Versionen (Alpha/Beta) gefunden werden
-                var req = (HttpWebRequest)WebRequest.Create("https://api.github.com/repos/" + AppInfo.GitHubRepo + "/releases?per_page=5");
-                req.UserAgent = "AkkuAnzeige-UpdateCheck";
-                req.Accept = "application/vnd.github+json";
-                req.Timeout = 8000;
-                string json;
+                var d = js.DeserializeObject(Get(AppInfo.UpdateManifestUrl, null)) as System.Collections.Generic.Dictionary<string, object>;
+                if (d != null && d.ContainsKey("version"))
+                {
+                    latest = Parse(Convert.ToString(d["version"]));
+                    stage = d.ContainsKey("stage") ? Convert.ToString(d["stage"]) : "";
+                    r.Url = d.ContainsKey("url") ? Convert.ToString(d["url"]) : AppInfo.Website;
+                }
+            }
+            catch { latest = null; }
+
+            // 2) Ersatz: GitHub-Releases (nur bei oeffentlichem Projekt)
+            if (latest == null)
+            {
                 try
                 {
-                    using (var resp = req.GetResponse())
-                    using (var sr = new StreamReader(resp.GetResponseStream())) json = sr.ReadToEnd();
+                    var arr = js.DeserializeObject(Get("https://api.github.com/repos/" + AppInfo.GitHubRepo + "/releases?per_page=5", "application/vnd.github+json")) as object[];
+                    var d = arr == null ? null : arr.OfType<System.Collections.Generic.Dictionary<string, object>>()
+                                                    .FirstOrDefault(x => !(x.ContainsKey("draft") && Convert.ToBoolean(x["draft"])));
+                    if (d == null) { r.Error = "PRIVATE"; return r; }
+                    latest = Parse(Convert.ToString(d["tag_name"]));
+                    r.Url = d.ContainsKey("html_url") ? Convert.ToString(d["html_url"]) : AppInfo.Website;
                 }
                 catch (WebException we)
                 {
                     var hr = we.Response as HttpWebResponse;
-                    if (hr != null && hr.StatusCode == HttpStatusCode.NotFound) { r.Error = "PRIVATE"; return r; } // privat oder nicht vorhanden
-                    throw;
+                    r.Error = hr != null && hr.StatusCode == HttpStatusCode.NotFound ? "PRIVATE" : we.Message;
+                    return r;
                 }
-                var arr = new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(json) as object[];
-                if (arr == null || arr.Length == 0) { r.Error = "PRIVATE"; return r; }
-                var d = arr.Cast<object>().OfType<System.Collections.Generic.Dictionary<string, object>>()
-                           .FirstOrDefault(x => !(x.ContainsKey("draft") && Convert.ToBoolean(x["draft"])));
-                string tag = d != null && d.ContainsKey("tag_name") ? Convert.ToString(d["tag_name"]) : "";
-                r.Url = d != null && d.ContainsKey("html_url") ? Convert.ToString(d["html_url"]) : AppInfo.Website;
-                var m = Regex.Match(tag, @"(\d+)\.(\d+)(?:\.(\d+))?");
-                if (!m.Success) { r.Error = "Tag '" + tag + "'"; return r; }
-                var latest = new Version(int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value), m.Groups[3].Success ? int.Parse(m.Groups[3].Value) : 0);
-                var cur = AppInfo.Version;
-                r.Latest = latest.Major + "." + latest.Minor + "." + latest.Build;
-                r.NewerAvailable = latest > new Version(cur.Major, cur.Minor, Math.Max(0, cur.Build));
-                r.Ok = true;
+                catch (Exception ex) { r.Error = ex.Message; return r; }
             }
-            catch (Exception ex) { r.Error = ex.Message; }
+            if (latest == null) { r.Error = "?"; return r; }
+
+            r.Latest = AppInfo.Format(latest) + (stage.Length > 0 ? " " + stage : "");
+            r.NewerAvailable = Normalize(latest) > Normalize(AppInfo.Version);
+            r.Ok = true;
             return r;
+        }
+    }
+
+    // Update-Suche mit Anzeige (Info-Bereich im Reiter Einstellungen)
+    public static class UpdateUi
+    {
+        public static void Open(string url) { try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { } }
+
+        public static void OpenWebsite(Label status)
+        {
+            if (AppInfo.Website != null) Open(AppInfo.Website);
+            else status.Text = L.T("Es ist noch keine Update-Adresse (GitHub) eingerichtet.");
+        }
+
+        public static void Check(Control owner, Button btn, Label status)
+        {
+            btn.Enabled = false;
+            status.Text = L.T("Suche nach Updates …");
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                var r = UpdateChecker.Check();
+                try
+                {
+                    owner.BeginInvoke((Action)(() =>
+                    {
+                        btn.Enabled = true;
+                        if (r.Error == "PRIVATE") status.Text = L.T("Das Projekt ist privat oder hat noch keine Veröffentlichung – die automatische Update-Suche ist erst möglich, wenn es öffentlich ist.");
+                        else if (!r.Ok) status.Text = L.F("Update-Suche fehlgeschlagen: {0}", r.Error);
+                        else if (!r.NewerAvailable) status.Text = L.F("Du hast die neueste Version ({0}).", AppInfo.VersionText);
+                        else
+                        {
+                            status.Text = L.F("Update verfügbar: Version {0} (installiert: {1}).", r.Latest, AppInfo.VersionText);
+                            if (MessageBox.Show(owner.FindForm(), status.Text + "\n\n" + L.T("Jetzt herunterladen?"), L.T("Update verfügbar"),
+                                                MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                                Open(r.Url ?? AppInfo.Website);
+                        }
+                    }));
+                }
+                catch { }
+            });
         }
     }
 
