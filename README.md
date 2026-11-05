@@ -3,6 +3,8 @@
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
 > ⚠️ **Alpha version 1.3.1** – the program is still being tested. Please report bugs as an *Issue*.
+>
+> ℹ️ **Not every device and manufacturer can be tested.** Testing is done with the devices we have ourselves (mainly Logitech via G HUB / receiver and Bluetooth headphones). Other manufacturers and models are partly untested – see [Supported data sources](#supported-data-sources). If your device is missing or shown incorrectly, please report it as an *Issue*.
 
 ### ⬇️ [Download: AkkuAnzeige-Setup-1.3.1-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
 *(Releases → latest version → Assets)*
@@ -192,6 +194,8 @@ Via **ⓘ About** in the settings window (or right-click → *About*):
 
 All built-in sources only *read*: they never change settings on the device.
 
+> ℹ️ **Note on other manufacturers:** We cannot test every device and manufacturer ourselves. Razer, Corsair, SteelSeries, ASUS and other manufacturers usually do not share their devices' battery levels with other programs – support is planned, but can only be built reliably with test devices. Do you own such a device and want to help with testing? Please get in touch via an *Issue*.
+
 ---
 
 ## Usage
@@ -240,7 +244,6 @@ The script compiles the app and the setup, signs both with the local certificate
 - DualSense over Bluetooth only shows a battery level while a program such as Steam is using the controller (switching it ourselves would break DirectInput games until the controller is power-cycled).
 - In games running in **exclusive** fullscreen no window can appear on top – you only hear the warning sound there (borderless fullscreen works).
 - Logitech standby is detected as soon as the device disconnects from its receiver; if only the lighting turns off, it still counts as active (optionally adjustable).
-- The automatic update check only works once this project is public.
 
 ---
 

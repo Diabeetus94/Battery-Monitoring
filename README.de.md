@@ -3,6 +3,8 @@
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
 > ⚠️ **Alpha-Version 1.3.1** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
+>
+> ℹ️ **Nicht alle Geräte und Hersteller können getestet werden.** Getestet wird mit den Geräten, die uns selbst zur Verfügung stehen (vor allem Logitech über G HUB / Empfänger und Bluetooth-Kopfhörer). Andere Hersteller und Modelle sind teils ungetestet – siehe [Unterstützte Datenquellen](#unterstützte-datenquellen). Wenn dein Gerät nicht oder falsch angezeigt wird, melde es gern als *Issue*.
 
 ### ⬇️ [Download: AkkuAnzeige-Setup-1.3.1-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
 *(Releases → neueste Version → Assets)*
@@ -192,6 +194,8 @@ Die Warnung läuft **nicht** über das Windows-Benachrichtigungssystem und kommt
 
 Alle eingebauten Quellen *lesen* nur – sie ändern keine Einstellungen am Gerät.
 
+> ℹ️ **Hinweis zu anderen Herstellern:** Wir können nicht jedes Gerät und jeden Hersteller selbst testen. Razer, Corsair, SteelSeries, ASUS und weitere Hersteller geben die Akkustände ihrer Geräte meist nicht für andere Programme frei – Unterstützung dafür ist geplant, kann aber nur mit Testgeräten zuverlässig umgesetzt werden. Hast du ein solches Gerät und möchtest beim Testen helfen? Melde dich gern über ein *Issue*.
+
 ---
 
 ## Bedienung
@@ -240,7 +244,6 @@ Das Skript kompiliert App und Setup, signiert beide mit dem lokalen Zertifikat �
 - DualSense über Bluetooth zeigt nur einen Akkustand, solange ein Programm wie Steam den Controller nutzt (selbst umschalten würde DirectInput-Spiele stören, bis der Controller aus- und wieder eingeschaltet wird).
 - Bei Spielen im **exklusiven** Vollbild kann kein Fenster darüber erscheinen – dort hörst du nur den Warnton (randloses Vollbild funktioniert).
 - Logitech-Standby wird erkannt, sobald sich das Gerät vom Empfänger trennt; wenn nur die Beleuchtung ausgeht, gilt es noch als aktiv (optional einstellbar).
-- Die automatische Update-Suche funktioniert erst, wenn dieses Projekt öffentlich ist.
 
 ---
 
