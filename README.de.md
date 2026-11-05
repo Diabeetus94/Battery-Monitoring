@@ -111,6 +111,7 @@ Ausgeschalteter Monitor – kann schon vorab eingerichtet werden:
 
 - **Alarm** – ab welchem Akkustand gewarnt wird (5–50 %), mit *Test-Alarm*
 - **Farbbereiche** – eine Linie mit zwei Griffen teilt Rot / Orange / Grün auf; die aktuellen Bereiche stehen darunter
+- **Farben** – Klick auf Rot, Orange, Grün oder Laden öffnet die Windows-Farbauswahl für eine eigene Farbe; *Standardfarbe* in der Farbauswahl bzw. *Standardfarben* daneben stellt die ursprünglichen Farben wieder her
 - **Getrennte Geräte und Geräte im Ruhemodus grau anzeigen** – der letzte Akkustand bleibt sichtbar
 - **Maus/Tastatur auch grau anzeigen, wenn sie unbenutzt sind seit … Minuten** – optional (z. B. wenn die Beleuchtung ausgeht, das Gerät aber noch verbunden ist)
 
@@ -129,7 +130,7 @@ Ausgeschalteter Monitor – kann schon vorab eingerichtet werden:
   - *Lautstärke* des Alarms (gilt für jedes Ausgabegerät)
   - *Sound*: Standard-Warnton, alle Windows-Sounds oder eigene Datei über *Durchsuchen …*
   - *Ton testen*
-- **Datenquellen** – welche installierte, kompatible Treiber-Software verknüpft ist
+- **Datenquellen** – welche installierte, kompatible Treiber-Software verknüpft ist. *Treiber & Geräte suchen* findet nachträglich installierte Treiber-Software und Geräte (Logitech-Empfänger, HyperX-Dongle, DualSense, gekoppelte AirPods/Beats): neue erscheinen mit *(neu)*, gefundene mit ✓ – anhaken und *Übernehmen*, schon sind sie verknüpft, ohne Neuinstallation
 
 ---
 

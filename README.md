@@ -111,6 +111,7 @@ Switched-off monitor – can be set up in advance:
 
 - **Alarm** – at which battery level you are warned (5–50 %), with *Test alarm*
 - **Color ranges** – a line with two handles splits red / orange / green; the current ranges are shown below
+- **Colors** – click red, orange, green or charging to pick your own color in the Windows color picker; *Default color* in the picker or *Default colors* next to it restores the original colors
 - **Show disconnected and sleeping devices in gray** – the last battery level stays visible
 - **Also show mouse/keyboard in gray when unused for … minutes** – optional (e.g. when the lighting turns off but the device is still connected)
 
@@ -129,7 +130,7 @@ Switched-off monitor – can be set up in advance:
   - *Alarm volume* (applies to every output device)
   - *Sound*: default warning tone, any Windows sound, or your own file via *Browse …*
   - *Test sound*
-- **Data sources** – which installed, compatible driver software is linked
+- **Data sources** – which installed, compatible driver software is linked. *Scan drivers & devices* finds driver software and devices added later (Logitech receiver, HyperX dongle, DualSense, paired AirPods/Beats): new ones appear marked *(new)*, found ones with ✓ – check them and click *Apply* to link them, no reinstall needed
 
 ---
 

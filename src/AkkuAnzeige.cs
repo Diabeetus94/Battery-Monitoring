@@ -395,6 +395,35 @@ namespace AkkuAnzeige
 
         class BtNode { public string Name; public bool Connected; public bool IsLe; public bool HasMain; public int? Battery; public string BattProfile; public int Vid = -1, Pid = -1; public bool Audio; }
 
+        // Geraete-Instanz-IDs eines Aufzaehlers (z.B. BTHENUM) – nur Namen, kein Geraetezugriff
+        static List<string> InstanceIds(string enumerator)
+        {
+            var res = new List<string>();
+            IntPtr set = SetupDiGetClassDevsW(IntPtr.Zero, enumerator, IntPtr.Zero, 0x2 | 0x4); // PRESENT | ALLCLASSES
+            if (set == IntPtr.Zero || set == new IntPtr(-1)) return res;
+            try
+            {
+                for (int i = 0; ; i++)
+                {
+                    var d = new SP_DEVINFO_DATA();
+                    d.cbSize = Marshal.SizeOf(typeof(SP_DEVINFO_DATA));
+                    if (!SetupDiEnumDeviceInfo(set, i, ref d)) break;
+                    var sb = new StringBuilder(512);
+                    int req;
+                    if (SetupDiGetDeviceInstanceIdW(set, ref d, sb, sb.Capacity, out req)) res.Add(sb.ToString().ToUpperInvariant());
+                }
+            }
+            finally { SetupDiDestroyDeviceInfoList(set); }
+            return res;
+        }
+
+        // fuer den Geraete-Scan in den Einstellungen
+        public static bool HasBluetoothDevices() { return InstanceIds("BTHENUM").Concat(InstanceIds("BTHLE")).Any(id => id.Contains("\\DEV_")); }
+        public static bool HasAppleAudio()
+        {
+            return InstanceIds("BTHENUM").Any(id => id.Contains("_VID&0001004C") && (id.Contains("{0000110B-") || id.Contains("{0000111E-")));
+        }
+
         static List<DeviceInfo> ReadBluetooth()
         {
             var nodes = new Dictionary<string, BtNode>();
@@ -505,6 +534,28 @@ namespace AkkuAnzeige
             if (Regex.IsMatch(ln, @"boost|speaker|lautsprecher|flip|charge|motion|soundbar|boom")) return "Lautsprecher";
             if (profile != null && profile.Contains("0000111E")) return "Kopfhörer";
             return "Bluetooth";
+        }
+    }
+
+    // ======================= Geraete-Scan (Einstellungen -> Datenquellen) =======================
+    // Sucht nachtraeglich installierte Hersteller-Software und angeschlossene/gekoppelte Hardware,
+    // damit man neue Quellen ohne Neuinstallation verknuepfen kann. Nur Aufzaehlen, kein Geraetezugriff.
+    class SourceScan
+    {
+        public List<VendorInfo> Vendors;
+        public Dictionary<string, bool> Present = new Dictionary<string, bool>();
+
+        public static SourceScan Run()
+        {
+            var r = new SourceScan { Vendors = AkkuAnzeige.Vendors.Detect(true) };
+            Func<Func<bool>, bool> safe = f => { try { return f(); } catch { return false; } };
+            r.Present[Links.Bluetooth] = safe(DeviceReader.HasBluetoothDevices);
+            r.Present[Links.LogiHid] = safe(() => Hid.Enumerate(0x046D).Any(h => h.UsagePage == 0xFF00));
+            r.Present[Links.HyperX] = safe(() => Hid.Enumerate(HyperX.VID, HyperX.Pids).Any(h => h.UsagePage == 0x01C0));
+            r.Present[Links.DualSense] = safe(() => Hid.Enumerate(DualSense.VID, DualSense.Pids).Any());
+            r.Present[Links.AirPods] = safe(DeviceReader.HasAppleAudio);
+            foreach (var v in r.Vendors) r.Present[v.Key] = v.Found;
+            return r;
         }
     }
 
