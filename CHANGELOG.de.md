@@ -1,0 +1,25 @@
+# Changelog – Akku-Anzeige
+
+## 1.2.0.2 Alpha – 05.11.2026
+- Updates werden jetzt direkt in der App heruntergeladen und installiert – ohne Browser
+- Vor der Installation wird geprüft, dass das Update mit dem Zertifikat der Akku-Anzeige signiert und unverändert ist
+- Neues Update-Fenster mit Versionsnummer und den Änderungen der neuen Version
+- Changelog direkt in der App (Einstellungen → Info → Changelog)
+- Setup: stiller Update-Modus, übernimmt die bisherigen Optionen und startet die App danach neu
+
+## 1.2.0.1 Alpha – 05.11.2026
+- Info-Bereich in den Reiter „Einstellungen“ verschoben (Version, Hersteller, Update-Suche)
+- Reiter „Einstellungen“ scrollbar – Platz für weitere Bereiche, dunkle Bildlaufleiste
+- Update-Suche über eine Update-Info, GitHub-Veröffentlichungen als Ersatz; vierstellige Versionsnummern
+- Ausgegraute Auswahlfelder im dunklen Design mit weißer Schrift
+
+## 1.2.0 Alpha – 05.11.2026
+- Erste Alpha-Version
+- Akku-Kacheln auf der Taskleiste, je Monitor eigene Geräte, Reihenfolge und Breite – auch für ausgeschaltete Monitore
+- Logitech G HUB (Akkustand, Laden, Aktiv/Standby/Aus) und Windows-Bluetooth
+- Getrennte Geräte und Standby grau mit letztem Akkustand
+- Eigenes Warnfenster mit Warnton – auch bei „Nicht stören“ und im Spielmodus; Lautstärke und Sound wählbar
+- Farbbereiche Rot/Orange/Grün einstellbar
+- Heller/dunkler Modus automatisch, Deutsch/Englisch
+- Sichtbar über Startmenü und Taskleisten-Menüs (UIAccess)
+- Setup mit Erkennung installierter, kompatibler Treiber-Software

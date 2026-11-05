@@ -1772,9 +1772,11 @@ namespace AkkuAnzeige
             var btnUpd = new Button { Text = L.T("Nach Updates suchen"), Bounds = new Rectangle(14, 96, 170, 30) };
             var btnWeb = new Button { Text = L.T("Website öffnen"), Bounds = new Rectangle(190, 96, 150, 30) };
             var lblUpd = new Label { Bounds = new Rectangle(14, 132, 584, 36) };
-            btnUpd.Click += delegate { UpdateUi.Check(this, btnUpd, lblUpd); };
+            var btnLog = new Button { Text = L.T("Changelog"), Bounds = new Rectangle(346, 96, 130, 30) };
+            btnUpd.Click += delegate { UpdateUi.Check(this, btnUpd, lblUpd, ctx.WindowIcon, DarkWanted(), ctx.BeginQuit); };
             btnWeb.Click += delegate { UpdateUi.OpenWebsite(lblUpd); };
-            gInfo.Controls.AddRange(new Control[] { pic, lblApp, lblVer, lblPow, btnUpd, btnWeb, lblUpd });
+            btnLog.Click += delegate { using (var f = new ChangelogForm(ctx.WindowIcon, DarkWanted())) f.ShowDialog(this); };
+            gInfo.Controls.AddRange(new Control[] { pic, lblApp, lblVer, lblPow, btnUpd, btnWeb, btnLog, lblUpd });
             var spacer = new Label { Bounds = new Rectangle(8, 752, 10, 12) }; // etwas Abstand unten beim Scrollen
 
             opt.Controls.AddRange(new Control[] { gProg, gTheme, gSound, gSrc, gInfo, spacer });
@@ -2013,7 +2015,10 @@ namespace AkkuAnzeige
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             bool showSettings = !args.Any(a => a.Equals("/autostart", StringComparison.OrdinalIgnoreCase));
-            Application.Run(new AppCtx(evt, showSettings));
+            // auch Fehler beim Start / in Hintergrund-Threads protokollieren
+            AppDomain.CurrentDomain.UnhandledException += (s, e) => LogError(e.ExceptionObject as Exception ?? new Exception(Convert.ToString(e.ExceptionObject)));
+            try { Application.Run(new AppCtx(evt, showSettings)); }
+            catch (Exception ex) { LogError(ex); throw; }
             GC.KeepAlive(mutex);
         }
 

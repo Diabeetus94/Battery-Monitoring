@@ -12,3 +12,6 @@ docs/shot_helper.ps1
 # Sicherungen
 *.bak
 *.bak2
+
+# fertige Setups fuer Veroeffentlichungen
+release/

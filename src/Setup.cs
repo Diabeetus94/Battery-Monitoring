@@ -49,6 +49,7 @@ namespace AkkuAnzeige
             if (args.Any(a => a.Equals("/lang=en", StringComparison.OrdinalIgnoreCase))) De = false;
             if (args.Any(a => a.Equals("/lang=de", StringComparison.OrdinalIgnoreCase))) De = true;
             if (args.Any(a => a.Equals("/uninstall", StringComparison.OrdinalIgnoreCase))) { Uninstall(args.Any(a => a.Equals("/quiet", StringComparison.OrdinalIgnoreCase))); return; }
+            if (args.Any(a => a.Equals("/update", StringComparison.OrdinalIgnoreCase))) { SilentUpdate(); return; }
             Application.Run(new SetupForm());
         }
 
@@ -154,6 +155,40 @@ namespace AkkuAnzeige
         }
 
         public static bool IsInstalled { get { return File.Exists(AppExe); } }
+
+        // ---------------- Stilles Update (aus der App heraus) ----------------
+        // Uebernimmt die bisherigen Optionen (Verknuepfungen, Autostart, verknuepfte Treiber-Software)
+        static void SilentUpdate()
+        {
+            bool desktop = File.Exists(DesktopLnk) || !IsInstalled;
+            bool startMenu = File.Exists(StartMenuLnk) || !IsInstalled;
+            bool autostart = true;
+            try { using (var k = Registry.CurrentUser.OpenSubKey(RunKey)) autostart = !IsInstalled || (k != null && k.GetValue("AkkuAnzeige") != null); } catch { }
+
+            var f = new Form
+            {
+                Text = "Akku-Anzeige", FormBorderStyle = FormBorderStyle.FixedToolWindow, StartPosition = FormStartPosition.CenterScreen,
+                ClientSize = new Size(380, 70), TopMost = true, ShowInTaskbar = false, ControlBox = false, BackColor = Color.FromArgb(32, 32, 32)
+            };
+            var lbl = new Label { Text = S("Akku-Anzeige wird auf Version {0} aktualisiert …", "Updating Battery Display to version {0} …").Replace("{0}", Version),
+                                  Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.White, Font = new Font("Segoe UI", 10f) };
+            f.Controls.Add(lbl);
+            f.Show();
+            Application.DoEvents();
+            var log = new System.Text.StringBuilder();
+            try
+            {
+                Install(desktop, startMenu, autostart, s => { log.AppendLine(s); Application.DoEvents(); });
+                f.Close();
+                StartAppAsUser();
+            }
+            catch (Exception ex)
+            {
+                f.Close();
+                MessageBox.Show(S("Das Update ist fehlgeschlagen:", "The update failed:") + "\n\n" + ex.Message + "\n\n" + log, "Akku-Anzeige",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
         // ---------------- Deinstallation ----------------
         static void Uninstall(bool quiet)

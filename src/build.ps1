@@ -45,14 +45,20 @@ if (Test-Path $winIco) { Copy-Item $winIco "$src\win.ico" -Force; Copy-Item $win
 else { Copy-Item "$src\app.ico" "$src\win.ico" -Force }
 
 # ---- Kompilieren ----
+# ---- Pruefung: doppelte Uebersetzungen lassen die App beim Start abstuerzen ----
+$langKeys = [regex]::Matches((Get-Content "$src\Lang.cs" -Raw -Encoding UTF8), '\{\s*"((?:[^"\\]|\\.)*)"\s*,\s*"') | ForEach-Object { $_.Groups[1].Value }
+$dup = $langKeys | Group-Object | Where-Object Count -gt 1
+if ($dup) { throw "Doppelte Uebersetzungen in Lang.cs: " + (($dup | ForEach-Object Name) -join ', ') }
+
 $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 & $csc /nologo /target:winexe /codepage:65001 /optimize+ /debug:pdbonly /platform:anycpu `
     "/win32icon:$src\app.ico" "/resource:$src\app.ico,AkkuAnzeige.app.ico" "/resource:$src\win.ico,AkkuAnzeige.win.ico" `
+    "/resource:$out\CHANGELOG.md,AkkuAnzeige.CHANGELOG.md" "/resource:$out\CHANGELOG.de.md,AkkuAnzeige.CHANGELOG.de.md" `
     /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Core.dll /r:System.ServiceProcess.dll `
     "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\PresentationCore.dll" `
     "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\WindowsBase.dll" `
     "/win32manifest:$src\app.manifest" `
-    "/out:$out\AkkuAnzeige.exe" "$src\AssemblyInfo.cs" "$src\AkkuAnzeige.cs" "$src\Ui.cs" "$src\Lang.cs" "$src\Vendors.cs" "$src\Info.cs"
+    "/out:$out\AkkuAnzeige.exe" "$src\AssemblyInfo.cs" "$src\AkkuAnzeige.cs" "$src\Ui.cs" "$src\Lang.cs" "$src\Vendors.cs" "$src\Info.cs" "$src\Update.cs"
 if ($LASTEXITCODE -ne 0) { throw "Build (App) fehlgeschlagen" }
 Copy-Item "$src\app.ico" "$out\AkkuAnzeige.ico" -Force
 

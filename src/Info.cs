@@ -34,7 +34,14 @@ namespace AkkuAnzeige
     // Sucht nach einer neueren Version: zuerst in der Update-Info (Gist), sonst in den GitHub-Releases
     public static class UpdateChecker
     {
-        public class Result { public bool Ok; public bool NewerAvailable; public string Latest; public string Url; public string Error; }
+        public class Result
+        {
+            public bool Ok, NewerAvailable;
+            public string Latest, Url, Error;
+            public string Download;   // direkter Link zur Setup-Datei
+            public string Sha256;     // erwartete Pruefsumme der Setup-Datei (optional)
+            public Version LatestVersion;
+        }
 
         static string Get(string url, string accept)
         {
@@ -75,6 +82,8 @@ namespace AkkuAnzeige
                     latest = Parse(Convert.ToString(d["version"]));
                     stage = d.ContainsKey("stage") ? Convert.ToString(d["stage"]) : "";
                     r.Url = d.ContainsKey("url") ? Convert.ToString(d["url"]) : AppInfo.Website;
+                    if (d.ContainsKey("download")) r.Download = Convert.ToString(d["download"]);
+                    if (d.ContainsKey("sha256")) r.Sha256 = Convert.ToString(d["sha256"]);
                 }
             }
             catch { latest = null; }
@@ -90,6 +99,15 @@ namespace AkkuAnzeige
                     if (d == null) { r.Error = "PRIVATE"; return r; }
                     latest = Parse(Convert.ToString(d["tag_name"]));
                     r.Url = d.ContainsKey("html_url") ? Convert.ToString(d["html_url"]) : AppInfo.Website;
+                    // Setup-Datei unter den Anhaengen der Veroeffentlichung
+                    var assets = d.ContainsKey("assets") ? d["assets"] as object[] : null;
+                    if (assets != null)
+                        foreach (var a in assets.OfType<System.Collections.Generic.Dictionary<string, object>>())
+                        {
+                            string n = a.ContainsKey("name") ? Convert.ToString(a["name"]) : "";
+                            if (n.StartsWith("AkkuAnzeige-Setup", StringComparison.OrdinalIgnoreCase) && n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                            { r.Download = Convert.ToString(a["browser_download_url"]); break; }
+                        }
                 }
                 catch (WebException we)
                 {
@@ -101,6 +119,7 @@ namespace AkkuAnzeige
             }
             if (latest == null) { r.Error = "?"; return r; }
 
+            r.LatestVersion = latest;
             r.Latest = AppInfo.Format(latest) + (stage.Length > 0 ? " " + stage : "");
             r.NewerAvailable = Normalize(latest) > Normalize(AppInfo.Version);
             r.Ok = true;
@@ -119,7 +138,9 @@ namespace AkkuAnzeige
             else status.Text = L.T("Es ist noch keine Update-Adresse (GitHub) eingerichtet.");
         }
 
-        public static void Check(Control owner, Button btn, Label status)
+        public static void Check(Control owner, Button btn, Label status) { Check(owner, btn, status, null, false, null); }
+
+        public static void Check(Control owner, Button btn, Label status, Icon icon, bool dark, Action quitApp)
         {
             btn.Enabled = false;
             status.Text = L.T("Suche nach Updates …");
@@ -137,9 +158,8 @@ namespace AkkuAnzeige
                         else
                         {
                             status.Text = L.F("Update verfügbar: Version {0} (installiert: {1}).", r.Latest, AppInfo.VersionText);
-                            if (MessageBox.Show(owner.FindForm(), status.Text + "\n\n" + L.T("Jetzt herunterladen?"), L.T("Update verfügbar"),
-                                                MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
-                                Open(r.Url ?? AppInfo.Website);
+                            // Update-Fenster: Changelog + "Jetzt aktualisieren" (Download und Installation in der App)
+                            using (var dlg = new UpdateDialog(r, icon ?? owner.FindForm().Icon, dark, quitApp)) dlg.ShowDialog(owner.FindForm());
                         }
                     }));
                 }
