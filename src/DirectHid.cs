@@ -9,8 +9,8 @@ namespace AkkuAnzeige
 {
     static class HyperX
     {
-        const ushort VID = 0x03F0;
-        static readonly ushort[] Pids = { 0x06BE, 0x02CC }; // Cloud III S Wireless (zwei Revisionen)
+        public const ushort VID = 0x03F0;
+        public static readonly ushort[] Pids = { 0x06BE, 0x02CC }; // Cloud III S Wireless (zwei Revisionen)
 
         // Anfrage: 64-Byte-Ausgabebericht 0C 02 03 01 00 <Befehl>; Antwort 0C ... <Befehl> <Wert> (Wert an Index 6)
         const byte OP_LINK = 0x02, OP_BATTERY = 0x06, OP_CHARGING = 0x48;
@@ -67,8 +67,8 @@ namespace AkkuAnzeige
 
     static class DualSense
     {
-        const ushort VID = 0x054C;
-        static readonly ushort[] Pids = { 0x0CE6, 0x0DF2 }; // DualSense, DualSense Edge
+        public const ushort VID = 0x054C;
+        public static readonly ushort[] Pids = { 0x0CE6, 0x0DF2 }; // DualSense, DualSense Edge
 
         // Nur passiv mitlesen: Ueber Bluetooth sendet der Controller den vollen Bericht 0x31 (mit Akku) erst,
         // nachdem ihn ein Programm (z.B. Steam) umgeschaltet hat. Selbst umschalten wuerde DirectInput-Spiele

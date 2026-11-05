@@ -59,6 +59,10 @@ namespace AkkuAnzeige
         public bool IdleGray { get; set; }       // Maus/Tastatur grau, wenn X Minuten unbenutzt (Beleuchtung aus)
         public int IdleMinutes { get; set; }
         public int AlarmVolume { get; set; }     // Alarm-Lautstaerke 0-100 %
+        public int ColorRed { get; set; }        // eigene Farben als ARGB, 0 = Standardfarbe (siehe Palette)
+        public int ColorOrange { get; set; }
+        public int ColorGreen { get; set; }
+        public int ColorCharging { get; set; }
         public string AlarmFile { get; set; }    // eigene Sounddatei (leer = Standard-Warnton)
         // aeltere Versionen (nur zum Uebernehmen beim ersten Start)
         public List<DeviceEntry> Devices { get; set; }
@@ -473,9 +477,23 @@ namespace AkkuAnzeige
 
         public Color LevelColor(int pct)
         {
-            if (pct >= GreenFrom) return Color.FromArgb(60, 190, 90);
-            if (pct >= OrangeFrom) return Color.FromArgb(255, 140, 0);
-            return Color.FromArgb(235, 50, 50);
+            if (pct >= GreenFrom) return ColorOf(Palette.Green);
+            if (pct >= OrangeFrom) return ColorOf(Palette.Orange);
+            return ColorOf(Palette.Red);
+        }
+
+        // eigene Farben (Grenzwerte -> Farben), mit Vorschau aus dem Einstellungsfenster
+        int[] pvColors;
+        public int[] SavedColors { get { return new[] { Settings.ColorRed, Settings.ColorOrange, Settings.ColorGreen, Settings.ColorCharging }; } }
+        public Color ColorOf(int slot)
+        {
+            int v = (pvColors ?? SavedColors)[slot];
+            return v == 0 ? Palette.Default[slot] : Color.FromArgb(255, Color.FromArgb(v));
+        }
+        public void SetColorPreview(int[] colors)
+        {
+            pvColors = colors;
+            foreach (var b in bars) b.Invalidate();
         }
 
         // alle Geraete, die auf irgendeinem aktivierten Monitor gewaehlt sind
@@ -575,7 +593,7 @@ namespace AkkuAnzeige
         public void SetPreview(List<MonitorEntry> p) { preview = p; RebuildBars(); }
         public void EndPreview()
         {
-            pvWarn = null; pvOrange = null; pvGreen = null; pvGray = null; pvIdle = null; pvIdleMin = null;
+            pvWarn = null; pvOrange = null; pvGreen = null; pvGray = null; pvIdle = null; pvIdleMin = null; pvColors = null;
             preview = null;
             RebuildBars();
         }
@@ -725,8 +743,11 @@ namespace AkkuAnzeige
         }
 
         // ----- Speichern -----
-        public void ApplySettings(List<MonitorEntry> monitors, int warnLevel, bool startMin, bool closeExits, int orange, int green, bool gray)
+        public void ApplySettings(List<MonitorEntry> monitors, int warnLevel, bool startMin, bool closeExits, int orange, int green, bool gray, int[] colors)
         {
+            Settings.ColorRed = colors[Palette.Red]; Settings.ColorOrange = colors[Palette.Orange];
+            Settings.ColorGreen = colors[Palette.Green]; Settings.ColorCharging = colors[Palette.Charging];
+            pvColors = null;
             Settings.StartMinimized = startMin;
             Settings.CloseExits = closeExits;
             Settings.OrangeFrom = orange;
@@ -1049,7 +1070,7 @@ namespace AkkuAnzeige
                     Color c;
                     if (!pct.HasValue) c = Color.Gray;
                     else if (!online && ctx.GrayOffline) c = Color.Gray;   // getrennt / Ruhemodus
-                    else if (chg) c = Color.FromArgb(0, 150, 255);
+                    else if (chg) c = ctx.ColorOf(Palette.Charging);
                     else c = ctx.LevelColor(pct.Value);
                     bool alarm = online && pct.HasValue && !chg && pct.Value <= ctx.WarnLevel;
 
@@ -1490,11 +1511,73 @@ namespace AkkuAnzeige
         }
     }
 
+    // ======================= Farben =======================
+    static class Palette
+    {
+        public const int Red = 0, Orange = 1, Green = 2, Charging = 3;
+        public static readonly Color[] Default =
+        {
+            Color.FromArgb(235, 50, 50), Color.FromArgb(255, 140, 0), Color.FromArgb(60, 190, 90), Color.FromArgb(0, 150, 255)
+        };
+    }
+
+    // Windows-Farbauswahl mit eigenem Titel und zusaetzlichem Button "Standardfarbe" unten im Dialog
+    class ColorPicker : ColorDialog
+    {
+        public string Title, ResetText;
+        public bool ResetRequested;
+        const int WM_INITDIALOG = 0x0110, WM_COMMAND = 0x0111, WM_GETFONT = 0x0031, WM_SETFONT = 0x0030, ID_RESET = 0x7A11;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        static extern IntPtr CreateWindowEx(int ex, string cls, string text, int style, int x, int y, int w, int h, IntPtr parent, IntPtr id, IntPtr inst, IntPtr param);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool PostMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool GetClientRect(IntPtr h, out Native.RECT r);
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] static extern bool SetWindowText(IntPtr h, string t);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr GetDlgItem(IntPtr dlg, int id);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool MapWindowPoints(IntPtr from, IntPtr to, ref Native.RECT r, int n);
+
+        protected override IntPtr HookProc(IntPtr hWnd, int msg, IntPtr wparam, IntPtr lparam)
+        {
+            if (msg == WM_INITDIALOG)
+            {
+                var res = base.HookProc(hWnd, msg, wparam, lparam);
+                try
+                {
+                    if (!string.IsNullOrEmpty(Title)) SetWindowText(hWnd, Title);
+                    // Fenster um eine Zeile verlaengern und den Button unter OK/Abbrechen setzen
+                    Native.RECT cr, wr, ok;
+                    GetClientRect(hWnd, out cr);
+                    Native.GetWindowRect(hWnd, out wr);
+                    IntPtr hOk = GetDlgItem(hWnd, 1);
+                    int bh = 26, margin = 8;
+                    if (hOk != IntPtr.Zero && Native.GetWindowRect(hOk, out ok)) { MapWindowPoints(IntPtr.Zero, hWnd, ref ok, 2); bh = ok.Bottom - ok.Top; margin = Math.Max(6, ok.Left); }
+                    Native.SetWindowPos(hWnd, IntPtr.Zero, 0, 0, wr.Right - wr.Left, wr.Bottom - wr.Top + bh + margin, 0x0002 | 0x0004 | 0x0010); // NOMOVE|NOZORDER|NOACTIVATE
+                    const int WS_CHILD = 0x40000000, WS_VISIBLE = 0x10000000, WS_TABSTOP = 0x00010000;
+                    IntPtr btn = CreateWindowEx(0, "BUTTON", ResetText ?? "Standard", WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                                                margin, cr.Bottom, cr.Right - 2 * margin, bh, hWnd, new IntPtr(ID_RESET), IntPtr.Zero, IntPtr.Zero);
+                    SendMessage(btn, WM_SETFONT, SendMessage(hWnd, WM_GETFONT, IntPtr.Zero, IntPtr.Zero), new IntPtr(1));
+                }
+                catch (Exception ex) { Program.LogError(ex); }
+                return res;
+            }
+            if (msg == WM_COMMAND && ((int)wparam & 0xFFFF) == ID_RESET)
+            {
+                ResetRequested = true;
+                PostMessage(hWnd, WM_COMMAND, new IntPtr(2) /*IDCANCEL*/, IntPtr.Zero);
+                return new IntPtr(1);
+            }
+            return base.HookProc(hWnd, msg, wparam, lparam);
+        }
+    }
+
     // ======================= Farbbereichs-Linie (Rot | Orange | Gruen) =======================
     class ColorRangeBar : Control
     {
         int orange = 30, green = 70, drag;
         public event EventHandler ValueChanged;
+        Color[] colors = { Palette.Default[Palette.Red], Palette.Default[Palette.Orange], Palette.Default[Palette.Green] };
+        public void SetColors(Color red, Color orangeCol, Color greenCol) { colors = new[] { red, orangeCol, greenCol }; Invalidate(); }
 
         public ColorRangeBar()
         {
@@ -1515,9 +1598,9 @@ namespace AkkuAnzeige
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             var t = Track;
-            using (var br = new SolidBrush(Color.FromArgb(235, 50, 50))) g.FillRectangle(br, X(0), t.Y, X(orange) - X(0), t.Height);
-            using (var br = new SolidBrush(Color.FromArgb(255, 140, 0))) g.FillRectangle(br, X(orange), t.Y, X(green) - X(orange), t.Height);
-            using (var br = new SolidBrush(Color.FromArgb(60, 190, 90))) g.FillRectangle(br, X(green), t.Y, X(100) - X(green), t.Height);
+            using (var br = new SolidBrush(colors[0])) g.FillRectangle(br, X(0), t.Y, X(orange) - X(0), t.Height);
+            using (var br = new SolidBrush(colors[1])) g.FillRectangle(br, X(orange), t.Y, X(green) - X(orange), t.Height);
+            using (var br = new SolidBrush(colors[2])) g.FillRectangle(br, X(green), t.Y, X(100) - X(green), t.Height);
             using (var pen = new Pen(Color.Silver))
             using (var f = new Font("Segoe UI", 8f))
             using (var sf = new StringFormat { Alignment = StringAlignment.Center })
@@ -1882,7 +1965,7 @@ namespace AkkuAnzeige
             gAlarm.Controls.AddRange(new Control[] { trk, lblTrk, btnTest });
 
             // Farbbereiche: eine Linie mit Rot | Orange | Gruen und zwei Griffen
-            var gCol = new GroupBox { Text = L.T("Farbbereiche (gilt für alle Monitore)"), Bounds = new Rectangle(8, 120, 624, 130) };
+            var gCol = new GroupBox { Text = L.T("Farbbereiche (gilt für alle Monitore)"), Bounds = new Rectangle(8, 120, 624, 164) };
             colBar = new ColorRangeBar { Bounds = new Rectangle(12, 24, 600, 50) };
             colBar.OrangeFrom = ctx.Settings.OrangeFrom;
             colBar.GreenFrom = ctx.Settings.GreenFrom;
@@ -1892,20 +1975,38 @@ namespace AkkuAnzeige
             var lblColHint = new Label { Text = L.T("Die beiden Griffe auf der Linie verschieben: links Rot, Mitte Orange, rechts Grün."), Bounds = new Rectangle(16, 102, 596, 18), ForeColor = Color.DimGray };
             gCol.Controls.AddRange(new Control[] { colBar, lblRed, lblOrange, lblGreen, lblColHint });
             colBar.ValueChanged += delegate { UpdateColLabels(); LimitsChanged(); };
+
+            // eigene Farben: Klick auf ein Feld oeffnet die Windows-Farbauswahl
+            colors = ctx.SavedColors;
+            gCol.Controls.Add(new Label { Text = L.T("Farben:"), Bounds = new Rectangle(16, 130, 56, 20) });
+            string[] colNames = { L.T("Rot"), L.T("Orange"), L.T("Grün"), L.T("Laden") };
+            colButtons = new Button[4];
+            for (int i = 0; i < 4; i++)
+            {
+                int slot = i;
+                var b = new Button { Text = "   " + colNames[i], Bounds = new Rectangle(72 + i * 106, 125, 100, 28), ImageAlign = ContentAlignment.MiddleLeft, TextAlign = ContentAlignment.MiddleRight };
+                b.Click += delegate { PickColor(slot, colNames[slot]); };
+                colButtons[i] = b;
+                gCol.Controls.Add(b);
+            }
+            var btnColReset = new Button { Text = L.T("Standardfarben"), Bounds = new Rectangle(498, 125, 114, 28) };
+            btnColReset.Click += delegate { colors = new int[4]; ColorsChanged(); };
+            gCol.Controls.Add(btnColReset);
+            ColorsChanged();
             UpdateColLabels();
 
             chkGray = new CheckBox
             {
                 Text = L.T("Getrennte Geräte und Geräte im Ruhemodus grau anzeigen (letzter Akkustand bleibt sichtbar)"),
-                Bounds = new Rectangle(16, 260, 610, 24),
+                Bounds = new Rectangle(16, 294, 610, 24),
                 Checked = ctx.Settings.GrayOffline
             };
             chkGray.CheckedChanged += delegate { LimitsChanged(); };
 
             // Maus/Tastatur auch grau, wenn sie eine Weile nicht benutzt wurden (Beleuchtung aus)
-            chkIdle = new CheckBox { Text = L.T("Maus/Tastatur auch grau anzeigen, wenn sie unbenutzt sind seit"), Bounds = new Rectangle(16, 290, 420, 24), Checked = ctx.Settings.IdleGray };
-            numIdle = new NumericUpDown { Minimum = 1, Maximum = 60, Value = Math.Max(1, Math.Min(60, ctx.Settings.IdleMinutes)), Bounds = new Rectangle(436, 290, 56, 24) };
-            var lblIdleMin = new Label { Text = L.T("Minuten"), Bounds = new Rectangle(498, 294, 80, 20) };
+            chkIdle = new CheckBox { Text = L.T("Maus/Tastatur auch grau anzeigen, wenn sie unbenutzt sind seit"), Bounds = new Rectangle(16, 324, 420, 24), Checked = ctx.Settings.IdleGray };
+            numIdle = new NumericUpDown { Minimum = 1, Maximum = 60, Value = Math.Max(1, Math.Min(60, ctx.Settings.IdleMinutes)), Bounds = new Rectangle(436, 324, 56, 24) };
+            var lblIdleMin = new Label { Text = L.T("Minuten"), Bounds = new Rectangle(498, 328, 80, 20) };
             numIdle.Enabled = chkIdle.Checked;
             chkIdle.CheckedChanged += delegate { numIdle.Enabled = chkIdle.Checked; IdleChanged(); };
             numIdle.ValueChanged += delegate { IdleChanged(); };
@@ -1919,7 +2020,7 @@ namespace AkkuAnzeige
                        "Bluetooth-Geräte erscheinen, sobald Windows ihren Akkustand kennt; AirPods/Beats über ihre Bluetooth-LE-Signale.\n\n" +
                        "Änderungen siehst du sofort als Vorschau. " +
                        "Gespeichert wird erst mit \"Übernehmen\" oder \"OK\" – \"Abbrechen\" verwirft sie."),
-                Bounds = new Rectangle(16, 330, 600, 160),
+                Bounds = new Rectangle(16, 364, 600, 160),
                 ForeColor = Color.DimGray
             };
             gen.Controls.AddRange(new Control[] { gAlarm, gCol, chkGray, chkIdle, numIdle, lblIdleMin, lblInfo });
@@ -1986,24 +2087,15 @@ namespace AkkuAnzeige
                        "die Desktop-Verknüpfung \"Akku-Anzeige\" oder per Doppelklick auf das Symbol im Infobereich.\n\n" +
                        "Die Akku-Kacheln auf der Taskleiste passen sich immer automatisch an die Farbe der Taskleiste an."));
 
-            // Datenquellen: welche (kompatiblen, installierten) Programme mit der Akku-Anzeige verknuepft sind
-            var gSrc = new GroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 608, 118) };
-            int sx = 12, sy = 22;
-            bool en = L.Current == "en";
-            var srcs = Links.BuiltIns.Select(b => new { Key = b.Key, Name = en ? b.NameEn : b.NameDe, Note = en ? b.NoteEn : b.NoteDe }).ToList();
-            foreach (var v in Vendors.Detect(true).Where(x => x.Support == VendorSupport.Supported))
-                srcs.Add(new { Key = v.Key, Name = v.Name, Note = en ? v.NoteEn : v.NoteDe });
-            var srcTip = new ToolTip { AutoPopDelay = 20000 };
-            foreach (var src in srcs)
-            {
-                var cb = new CheckBox { Text = src.Name, Tag = src.Key, Checked = Links.Enabled(src.Key), Bounds = new Rectangle(sx, sy, 190, 24), AutoEllipsis = true };
-                srcTip.SetToolTip(cb, src.Note);
-                srcChecks.Add(cb);
-                gSrc.Controls.Add(cb);
-                if (sx < 404) sx += 196; else { sx = 12; sy += 24; }
-            }
-            var lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 96, 584, 18), ForeColor = Color.DimGray };
+            // Datenquellen: welche (kompatiblen, installierten) Programme mit der Akku-Anzeige verknuepft sind.
+            // "Treiber & Geräte suchen" erkennt nachtraeglich installierte Software und angeschlossene Hardware.
+            gSrc = new GroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 608, 118) };
+            lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 96, 430, 18), ForeColor = Color.DimGray, AutoEllipsis = true };
+            btnScan = new Button { Text = L.T("Treiber && Geräte suchen"), Bounds = new Rectangle(450, 90, 146, 26) };
+            btnScan.Click += delegate { ScanSources(); };
             gSrc.Controls.Add(lblSrcHint);
+            gSrc.Controls.Add(btnScan);
+            BuildSources(null);
             // Info: Version, Hersteller, Update-Suche (frueher eigenes Fenster)
             gInfo = new GroupBox { Text = L.T("Info"), Bounds = new Rectangle(8, 576, 608, 176) };
             var pic = new PictureBox { Bounds = new Rectangle(14, 26, 56, 56), SizeMode = PictureBoxSizeMode.Zoom };
@@ -2154,6 +2246,112 @@ namespace AkkuAnzeige
             soundFile = ((SoundItem)cmbSound.Items[idx]).Path;
         }
 
+        GroupBox gSrc;
+        Label lblSrcHint;
+        Button btnScan;
+        readonly ToolTip srcTip = new ToolTip { AutoPopDelay = 20000 };
+        readonly Dictionary<string, bool> srcState = new Dictionary<string, bool>(); // Haken, die schon im Fenster standen
+
+        // Liste der Datenquellen aufbauen; scan != null: Ergebnis von "Treiber & Geräte suchen"
+        void BuildSources(SourceScan scan)
+        {
+            foreach (var cb in srcChecks) { srcState[(string)cb.Tag] = cb.Checked; gSrc.Controls.Remove(cb); cb.Dispose(); }
+            srcChecks.Clear();
+            bool en = L.Current == "en";
+            var srcs = Links.BuiltIns.Select(b => new { Key = b.Key, Name = en ? b.NameEn : b.NameDe, Note = en ? b.NoteEn : b.NoteDe }).ToList();
+            var vendors = scan != null ? scan.Vendors : Vendors.Detect(true);
+            foreach (var v in vendors.Where(x => x.Support == VendorSupport.Supported))
+                srcs.Add(new { Key = v.Key, Name = v.Name, Note = en ? v.NoteEn : v.NoteDe });
+            int sx = 12, sy = 22;
+            var newOnes = new List<string>();
+            foreach (var src in srcs)
+            {
+                bool known = srcState.ContainsKey(src.Key);
+                bool isNew = scan != null && !known;  // erst durch den Scan aufgetaucht -> nur anbieten, nicht anhaken
+                bool found = false;
+                if (scan != null) scan.Present.TryGetValue(src.Key, out found);
+                string text = src.Name + (isNew ? " (" + L.T("neu") + ")" : "") + (found ? " ✓" : "");
+                var cb = new CheckBox { Text = text, Tag = src.Key, Bounds = new Rectangle(sx, sy, 190, 24), AutoEllipsis = true,
+                                        Checked = known ? srcState[src.Key] : (isNew ? false : Links.Enabled(src.Key)) };
+                srcTip.SetToolTip(cb, src.Note + (scan == null ? "" : "\n" + (found ? L.T("Auf diesem PC gefunden.") : L.T("Auf diesem PC nicht gefunden."))));
+                if (isNew) newOnes.Add(src.Name);
+                srcChecks.Add(cb);
+                gSrc.Controls.Add(cb);
+                if (sx < 404) sx += 196; else { sx = 12; sy += 24; }
+            }
+            if (scan == null) return;
+            // Ergebnis zusammenfassen
+            var foundNames = srcs.Where(x => x.Key != Links.Bluetooth && scan.Present.ContainsKey(x.Key) && scan.Present[x.Key]).Select(x => x.Name).ToList();
+            var parts = new List<string>();
+            parts.Add(foundNames.Count > 0 ? L.F("Gefunden: {0}", string.Join(", ", foundNames)) : L.T("Keine weiteren kompatiblen Geräte oder Programme gefunden."));
+            if (newOnes.Count > 0) parts.Add(L.T("Neue zum Verknüpfen anhaken und \"Übernehmen\"."));
+            var incompatible = scan.Vendors.Where(v => v.Support != VendorSupport.Supported).Select(v => v.Name).ToList();
+            if (incompatible.Count > 0) parts.Add(L.F("Erkannt, aber nicht kompatibel: {0}", string.Join(", ", incompatible)));
+            lblSrcHint.Text = string.Join(" · ", parts);
+            srcTip.SetToolTip(lblSrcHint, string.Join("\n", parts));
+            ApplyTheme(); // neue Haekchen im aktuellen Design
+        }
+
+        void ScanSources()
+        {
+            btnScan.Enabled = false;
+            lblSrcHint.Text = L.T("Suche nach Treibern und Geräten …");
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                SourceScan r = null;
+                try { r = SourceScan.Run(); } catch (Exception ex) { Program.LogError(ex); }
+                try
+                {
+                    BeginInvoke((Action)(() =>
+                    {
+                        if (IsDisposed) return;
+                        btnScan.Enabled = true;
+                        if (r != null) BuildSources(r); else lblSrcHint.Text = L.T("Suche fehlgeschlagen.");
+                    }));
+                }
+                catch { }
+            });
+        }
+
+        int[] colors;          // eingestellte Farben (ARGB, 0 = Standard), Reihenfolge wie Palette
+        Button[] colButtons;
+
+        Color ColorAt(int slot) { return colors[slot] == 0 ? Palette.Default[slot] : Color.FromArgb(255, Color.FromArgb(colors[slot])); }
+
+        void PickColor(int slot, string name)
+        {
+            using (var dlg = new ColorPicker { Color = ColorAt(slot), FullOpen = true, Title = L.F("Farbe für \"{0}\" wählen", name), ResetText = L.T("Standardfarbe") })
+            {
+                var r = dlg.ShowDialog(this);
+                if (dlg.ResetRequested) colors[slot] = 0;
+                else if (r == DialogResult.OK) colors[slot] = dlg.Color.ToArgb() == Palette.Default[slot].ToArgb() ? 0 : dlg.Color.ToArgb();
+                else return;
+            }
+            ColorsChanged();
+        }
+
+        // Farbfelder, Farblinie und Beschriftungen auffrischen + Vorschau auf den Kacheln
+        void ColorsChanged()
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                var bmp = new Bitmap(16, 16);
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    using (var br = new SolidBrush(ColorAt(i))) g.FillRectangle(br, 0, 0, 16, 16);
+                    g.DrawRectangle(Pens.Gray, 0, 0, 15, 15);
+                }
+                var old = colButtons[i].Image;
+                colButtons[i].Image = bmp;
+                if (old != null) old.Dispose();
+            }
+            colBar.SetColors(ColorAt(Palette.Red), ColorAt(Palette.Orange), ColorAt(Palette.Green));
+            lblRed.ForeColor = ColorAt(Palette.Red);
+            lblOrange.ForeColor = ColorAt(Palette.Orange);
+            lblGreen.ForeColor = ColorAt(Palette.Green);
+            if (ready) ctx.SetColorPreview((int[])colors.Clone());
+        }
+
         void UpdateColLabels()
         {
             lblRed.Text = L.F("Rot: 0 – {0} %", colBar.OrangeFrom - 1);
@@ -2193,7 +2391,7 @@ namespace AkkuAnzeige
             bool langChanged = newLang != ctx.Settings.Language;
             ctx.Settings.Language = newLang;
             ctx.ApplySettings(pages.Select(p => p.Entry.Clone()).ToList(), trk.Value, chkMin.Checked, cmbClose.SelectedIndex == 1,
-                              colBar.OrangeFrom, colBar.GreenFrom, chkGray.Checked);
+                              colBar.OrangeFrom, colBar.GreenFrom, chkGray.Checked, (int[])colors.Clone());
             if (langChanged)
             {
                 // Sprache umstellen: Fenster und Menue in der neuen Sprache neu aufbauen
