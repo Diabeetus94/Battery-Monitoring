@@ -66,7 +66,7 @@ $winrt = @(
     "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\PresentationCore.dll" `
     "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\WindowsBase.dll" `
     @winrt "/win32manifest:$src\app.manifest" `
-    "/out:$out\AkkuAnzeige.exe" "$src\AssemblyInfo.cs" "$src\AkkuAnzeige.cs" "$src\Ui.cs" "$src\Lang.cs" "$src\Vendors.cs" "$src\Info.cs" "$src\Update.cs" "$src\BugReport.cs" `
+    "/out:$out\AkkuAnzeige.exe" "$src\AssemblyInfo.cs" "$src\AkkuAnzeige.cs" "$src\Ui.cs" "$src\Lang.cs" "$src\Vendors.cs" "$src\Info.cs" "$src\Update.cs" "$src\BugReport.cs" "$src\Switcher.cs" `
     "$src\Hid.cs" "$src\LogiHidpp.cs" "$src\DirectHid.cs" "$src\AppleBle.cs"
 if ($LASTEXITCODE -ne 0) { throw "Build (App) fehlgeschlagen" }
 Copy-Item "$src\app.ico" "$out\AkkuAnzeige.ico" -Force

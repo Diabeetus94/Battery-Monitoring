@@ -1,5 +1,11 @@
 # Changelog – Akku-Anzeige
 
+## 1.3.1 Alpha – 05.11.2026
+- Neu: Geräte direkt in der Taskleiste tauschen – Klick auf eine Kachel öffnet darüber ein Fenster mit allen Geräten; die Auswahl wird sofort gespeichert (Einstellungen → Taskleiste, abschaltbar)
+- Neu: Windows-Mitteilung, wenn ein Update verfügbar ist (Einstellungen → Updates, abschaltbar)
+- Neu: automatische Updates – laden, prüfen und installieren sich selbst (Einstellungen → Updates, standardmäßig aus)
+- Rechtsklick-Menü im Design des Programms (hell/dunkel)
+
 ## 1.3.0 Alpha – 05.11.2026
 - Symbol im Infobereich der Taskleiste (unten rechts) ist jetzt dasselbe wie das Programm-Symbol
 

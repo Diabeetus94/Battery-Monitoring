@@ -71,9 +71,15 @@ namespace AkkuAnzeige
         // true, sobald der Nutzer die Geraeteauswahl einmal uebernommen hat; vorher werden gefundene
         // Geraete automatisch auf leeren Monitor-Leisten angezeigt (damit nach der Installation etwas zu sehen ist)
         public bool DevicesConfigured { get; set; }
+        public bool QuickSwitch { get; set; }    // Klick auf eine Kachel: Geraet direkt in der Taskleiste tauschen
+        public bool UpdateNotify { get; set; }   // Windows-Mitteilung, wenn ein Update verfuegbar ist
+        public bool AutoUpdate { get; set; }     // Updates selbststaendig herunterladen und installieren
 
         public AppSettings()
         {
+            QuickSwitch = true;
+            UpdateNotify = true;
+            AutoUpdate = false;
             WarnLevel = 25;
             TileWidth = 175;
             OrangeFrom = 30;
@@ -218,6 +224,7 @@ namespace AkkuAnzeige
 
             AppIcon = LoadAppIcon();
             menu = new ContextMenuStrip();
+            menu.Opening += delegate { ThemeMenu(); };
             RebuildMenu();
 
             tray = new NotifyIcon();
@@ -263,6 +270,200 @@ namespace AkkuAnzeige
             vendorTimer = new System.Windows.Forms.Timer { Interval = 30 * 60 * 1000 };
             vendorTimer.Tick += delegate { CheckNewVendors(); };
             vendorTimer.Start();
+
+            // Update-Suche im Hintergrund: 1 Minute nach dem Start, danach alle 6 Stunden
+            tray.BalloonTipClicked += delegate { OpenUpdateDialog(); };
+            updTimer = new System.Windows.Forms.Timer { Interval = 60 * 1000 };
+            updTimer.Tick += delegate { updTimer.Interval = 6 * 60 * 60 * 1000; BackgroundUpdateCheck(); };
+            updTimer.Start();
+        }
+
+        // ----- Fensterdesign wie im Einstellungsfenster (automatisch oder fest hell/dunkel) -----
+        public bool DarkWanted() { return Settings.ThemeAuto ? Theme.SystemAppsDark() : Settings.ThemeDark; }
+
+        // ----- Updates im Hintergrund: Windows-Mitteilung und/oder automatische Installation -----
+        System.Windows.Forms.Timer updTimer;
+        UpdateChecker.Result pendingUpdate;   // zuletzt gefundenes Update (fuer Klick auf die Mitteilung)
+        string notifiedVersion, autoTried;    // pro Programmstart nur einmal melden / einmal versuchen
+        bool updBusy;
+
+        public void CheckUpdatesSoon()
+        {
+            updTimer.Stop();
+            updTimer.Interval = 5000;
+            updTimer.Start();
+        }
+
+        void BackgroundUpdateCheck()
+        {
+            if (updBusy || (!Settings.UpdateNotify && !Settings.AutoUpdate)) return;
+            updBusy = true;
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                UpdateChecker.Result r = null;
+                try { r = UpdateChecker.Check(); } catch { }
+                try { invoker.BeginInvoke((Action)(() => { updBusy = false; OnUpdateChecked(r); })); } catch { updBusy = false; }
+            });
+        }
+
+        void OnUpdateChecked(UpdateChecker.Result r)
+        {
+            if (r == null || !r.Ok || !r.NewerAvailable) return;
+            pendingUpdate = r;
+            Program.Log("Update gefunden: " + r.Latest + (Settings.AutoUpdate ? " (automatisch)" : Settings.UpdateNotify ? " (Mitteilung)" : ""));
+            if (Settings.AutoUpdate && !string.IsNullOrEmpty(r.Download) && autoTried != r.Latest)
+            {
+                // nicht mitten im Vollbild-Spiel installieren (Windows-Abfrage wuerde es unterbrechen) -> in 10 Min. erneut
+                if (fullScreen != null) { updTimer.Stop(); updTimer.Interval = 10 * 60 * 1000; updTimer.Start(); return; }
+                autoTried = r.Latest;
+                AutoInstall(r);
+                return;
+            }
+            if (Settings.UpdateNotify && notifiedVersion != r.Latest)
+            {
+                notifiedVersion = r.Latest;
+                tray.ShowBalloonTip(15000, L.T("Update verfügbar"),
+                    L.F("Akku-Anzeige {0} ist verfügbar (installiert: {1}). Hier klicken, um das Update zu installieren.", r.Latest, AppInfo.VersionText),
+                    ToolTipIcon.Info);
+            }
+        }
+
+        UpdateDialog updDialog;
+        void OpenUpdateDialog()
+        {
+            if (pendingUpdate == null) return;
+            if (updDialog != null && !updDialog.IsDisposed) { updDialog.Activate(); return; }
+            updDialog = new UpdateDialog(pendingUpdate, WindowIcon, DarkWanted(), BeginQuit);
+            updDialog.StartPosition = FormStartPosition.CenterScreen;
+            updDialog.ShowInTaskbar = true;
+            updDialog.TopMost = true;
+            updDialog.Show();
+            updDialog.Activate();
+        }
+
+        // Download + Pruefung (Pruefsumme, Signatur, Zertifikat) wie im Update-Fenster, dann stille Installation
+        void AutoInstall(UpdateChecker.Result r)
+        {
+            tray.ShowBalloonTip(8000, L.T("Update wird installiert"), L.F("Akku-Anzeige {0} wird heruntergeladen und installiert.", r.Latest), ToolTipIcon.Info);
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                string file = null, err = null;
+                try
+                {
+                    string dir = Path.Combine(Path.GetTempPath(), "AkkuAnzeige-Update");
+                    Directory.CreateDirectory(dir);
+                    file = Path.Combine(dir, "AkkuAnzeige-Setup-" + AppInfo.Format(r.LatestVersion) + ".exe");
+                    if (File.Exists(file)) File.Delete(file);
+                    System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
+                    using (var wc = new System.Net.WebClient())
+                    {
+                        wc.Headers[System.Net.HttpRequestHeader.UserAgent] = "AkkuAnzeige-Updater";
+                        wc.DownloadFile(r.Download, file);
+                    }
+                    err = Updater.Verify(file, r.Sha256);
+                    if (err != null) { try { File.Delete(file); } catch { } }
+                }
+                catch (Exception ex) { err = ex.Message; }
+                try
+                {
+                    invoker.BeginInvoke((Action)(() =>
+                    {
+                        if (err != null)
+                        {
+                            tray.ShowBalloonTip(15000, L.T("Update fehlgeschlagen"), err + "\n" + L.T("Hier klicken, um es von Hand zu installieren."), ToolTipIcon.Warning);
+                            return;
+                        }
+                        try
+                        {
+                            // Setup im stillen Update-Modus: beendet die App, installiert und startet die neue Version
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(file, "/update") { UseShellExecute = true });
+                            Quit();
+                        }
+                        catch (System.ComponentModel.Win32Exception w)
+                        {
+                            tray.ShowBalloonTip(15000, L.T("Update nicht installiert"),
+                                (w.NativeErrorCode == 1223 ? L.T("Installation abgebrochen.") : w.Message) + "\n" + L.T("Hier klicken, um es von Hand zu installieren."), ToolTipIcon.Warning);
+                        }
+                        catch (Exception ex) { Program.LogError(ex); }
+                    }));
+                }
+                catch { }
+            });
+        }
+
+        // ----- Geraet direkt in der Taskleiste tauschen -----
+        DeviceSwitcher switcher;
+        int switcherClosed;
+
+        public void ShowSwitcher(BarForm bar, MonitorEntry cfg, int index, Rectangle tileScreen)
+        {
+            if (switcher != null && !switcher.IsDisposed) { bool same = switcher.Matches(cfg.Id, index); switcher.Close(); if (same) return; }
+            // zweiter Klick auf dieselbe Kachel schliesst das Fenster (es schliesst sich schon beim Druecken der Maustaste)
+            else if (switcher != null && switcher.Matches(cfg.Id, index) && Environment.TickCount - switcherClosed < 400) return;
+            Poll();
+            switcher = new DeviceSwitcher(this, cfg.Id, index, tileScreen, DarkWanted());
+            switcher.FormClosed += delegate { switcherClosed = Environment.TickCount; };
+            switcher.Show();
+            switcher.Activate();
+        }
+
+        // alle bekannten Geraete: gefundene + auf irgendeinem Monitor eingetragene (auch gerade getrennte)
+        public List<DeviceEntry> SwitchCandidates(string monitorId)
+        {
+            var res = new List<DeviceEntry>();
+            var mon = Settings.KnownMonitors.FirstOrDefault(m => m.Id == monitorId);
+            Func<string, DeviceEntry> known = id =>
+            {
+                if (mon != null && mon.Devices != null) { var e = mon.Devices.FirstOrDefault(x => x.Id == id); if (e != null) return e; }
+                foreach (var m in Settings.KnownMonitors) if (m.Devices != null) { var e = m.Devices.FirstOrDefault(x => x.Id == id); if (e != null) return e; }
+                return null;
+            };
+            foreach (var d in Available)
+            {
+                if (res.Any(x => x.Id == d.Id)) continue;
+                var k = known(d.Id);
+                res.Add(k != null ? k.Clone() : new DeviceEntry { Id = d.Id, Label = d.Name, Icon = d.DefaultIcon ?? "Bluetooth" });
+            }
+            foreach (var m in Settings.KnownMonitors)
+                if (m.Devices != null)
+                    foreach (var e in m.Devices)
+                        if (!res.Any(x => x.Id == e.Id)) { var k = known(e.Id); res.Add((k ?? e).Clone()); }
+            return res;
+        }
+
+        // Kachel 'index' auf Monitor 'monitorId' zeigt ab sofort 'newId' (steht es schon in einer anderen Kachel: Plaetze tauschen).
+        // Wird sofort gespeichert – ohne Bestaetigen.
+        public void SwitchDevice(string monitorId, int index, DeviceEntry chosen)
+        {
+            var mon = Settings.KnownMonitors.FirstOrDefault(m => m.Id == monitorId);
+            if (mon == null || mon.Devices == null || index < 0 || index >= mon.Devices.Count) return;
+            int j = mon.Devices.FindIndex(x => x.Id == chosen.Id);
+            if (j == index) return;
+            if (j >= 0) { var t = mon.Devices[index]; mon.Devices[index] = mon.Devices[j]; mon.Devices[j] = t; }
+            else mon.Devices[index] = chosen.Clone();
+            Settings.DevicesConfigured = true;
+            try { Settings.Save(); } catch (Exception ex) { Program.LogError(ex); }
+            warned.Clear();
+            // offenes Einstellungsfenster: dessen Monitor-Reiter mitziehen (sonst ueberschreibt die Vorschau den Tausch)
+            if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.ExternalDevices(monitorId, mon.Devices);
+            RebuildBars();
+            foreach (var b in bars) b.Invalidate();
+            CheckAlarms();
+            UpdateTrayText();
+        }
+
+        // Rechtsklick-Menue im Design des Programmfensters
+        void ThemeMenu()
+        {
+            bool d = DarkWanted();
+            menu.Renderer = new ToolStripProfessionalRenderer(new MenuColors(d)) { RoundedEdges = false };
+            menu.BackColor = Theme.Page(d);
+            menu.ForeColor = Theme.Fore(d);
+            menu.Font = new Font("Segoe UI", 9.5f);
+            menu.ShowImageMargin = false;
+            menu.Padding = new Padding(2, 4, 2, 4);
+            foreach (ToolStripItem it in menu.Items) { it.ForeColor = Theme.Fore(d); if (!(it is ToolStripSeparator)) it.Padding = new Padding(6, 3, 12, 3); }
+            Theme.RoundCorners(menu.Handle, true);
         }
 
         public Icon WindowIcon;
@@ -799,7 +1000,8 @@ namespace AkkuAnzeige
         {
             SystemEvents.DisplaySettingsChanged -= OnDisplayChanged;
             SystemEvents.UserPreferenceChanged -= OnUserPrefChanged;
-            pollTimer.Stop(); keepTimer.Stop();
+            pollTimer.Stop(); keepTimer.Stop(); updTimer.Stop();
+            if (switcher != null && !switcher.IsDisposed) switcher.Close();
             guardUntil = Environment.TickCount;
             taskbarHook.Watch(false);
             tray.Visible = false; tray.Dispose();
@@ -832,9 +1034,27 @@ namespace AkkuAnzeige
             DoubleBuffered = true;
             MouseUp += (s, e) =>
             {
-                if (e.Button == MouseButtons.Right) ctx.ShowMenu(Cursor.Position);
+                if (e.Button == MouseButtons.Right) { ctx.ShowMenu(Cursor.Position); return; }
+                if (e.Button != MouseButtons.Left) return;
+                int i = TileAt(e.X);
+                // Linksklick auf eine Kachel: Geraet direkt hier tauschen (abschaltbar), sonst nur aktualisieren
+                if (ctx.Settings.QuickSwitch && i >= 0 && cfg.Id != null)
+                {
+                    var r = new Rectangle(i * (TileWidth + Gap), 0, TileWidth, ClientSize.Height);
+                    ctx.ShowSwitcher(this, cfg, i, RectangleToScreen(r));
+                }
                 else ctx.Poll();
             };
+        }
+
+        // Kachel unter der Mausposition (-1 = Luecke zwischen zwei Kacheln)
+        int TileAt(int x)
+        {
+            int step = TileWidth + Gap;
+            if (step <= 0 || x < 0) return -1;
+            int i = x / step;
+            if (i >= cfg.Devices.Count || x - i * step >= TileWidth) return -1;
+            return i;
         }
 
         static Font MakeFont(string fam, string fallback, float px)
@@ -1273,6 +1493,18 @@ namespace AkkuAnzeige
         public static Color Border(bool d) { return d ? Color.FromArgb(85, 85, 85) : Color.FromArgb(200, 200, 200); }
         public static Color Accent(bool d) { return d ? Color.FromArgb(76, 160, 255) : Color.FromArgb(0, 103, 192); }
         public static Color HeaderBack(bool d) { return d ? Color.FromArgb(50, 50, 50) : Color.FromArgb(240, 240, 240); }
+        public static Color Hover(bool d) { return d ? Color.FromArgb(61, 61, 61) : Color.FromArgb(229, 241, 251); }
+        public static Color Selected(bool d) { return d ? Color.FromArgb(0, 84, 153) : Color.FromArgb(204, 228, 247); }
+
+        // Windows 11: abgerundete Ecken + Schatten fuer rahmenlose Fenster und Menues (aeltere Windows ignorieren das)
+        public static void RoundCorners(IntPtr h, bool small)
+        {
+            try { int v = small ? 3 : 2; DwmSetWindowAttribute(h, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, ref v, 4); } catch { }
+        }
+        public static void DwmBorder(IntPtr h, Color c)
+        {
+            try { int v = c.R | (c.G << 8) | (c.B << 16); DwmSetWindowAttribute(h, 34 /*DWMWA_BORDER_COLOR*/, ref v, 4); } catch { }
+        }
 
         public static void Apply(Control root, bool d)
         {
@@ -1983,6 +2215,22 @@ namespace AkkuAnzeige
             OnSelect();
         }
 
+        // Kacheln wurden aussen geaendert: angehakte Geraete in neuer Reihenfolge, die uebrigen dahinter (nicht angehakt)
+        public void ReplaceDevices(List<DeviceEntry> devices)
+        {
+            var old = rows;
+            rows = new List<Row>();
+            foreach (var d in devices)
+            {
+                var o = old.FirstOrDefault(r => r.Id == d.Id);
+                rows.Add(new Row { Id = d.Id, Label = d.Label, Icon = d.Icon, Checked = true, Info = o != null ? o.Info : app.Get(d.Id) });
+            }
+            foreach (var o in old)
+                if (!rows.Any(r => r.Id == o.Id)) { o.Checked = false; rows.Add(o); }
+            FillList(-1);
+            Sync();
+        }
+
         public void UpdateDevices(List<DeviceInfo> list)
         {
             foreach (var r in rows) r.Info = list.FirstOrDefault(d => d.Id == r.Id);
@@ -2045,7 +2293,7 @@ namespace AkkuAnzeige
         Label lblVol;
         ComboBox cmbSound;
         string soundFile;
-        CheckBox chkAuto, chkMin, chkGray, chkThemeAuto, chkIdle;
+        CheckBox chkAuto, chkMin, chkGray, chkThemeAuto, chkIdle, chkQuick, chkUpdNotify, chkAutoUpd;
         NumericUpDown numIdle;
         ComboBox cmbClose, cmbTheme, cmbLang;
         List<CheckBox> srcChecks = new List<CheckBox>();
@@ -2172,7 +2420,13 @@ namespace AkkuAnzeige
             cmbClose.SelectedIndex = ctx.Settings.CloseExits ? 1 : 0;
             gProg.Controls.AddRange(new Control[] { chkAuto, chkMin, lblClose, cmbClose });
 
-            var gTheme = new ThemedGroupBox { Text = L.T("Darstellung"), Bounds = new Rectangle(8, 148, 608, 134) };
+            // Taskleiste: Geraet per Klick auf die Kachel direkt tauschen
+            var gBar = new ThemedGroupBox { Text = L.T("Taskleiste"), Bounds = new Rectangle(8, 148, 608, 76) };
+            chkQuick = new CheckBox { Text = L.T("Geräte direkt in der Taskleiste tauschen (Klick auf eine Kachel)"), Bounds = new Rectangle(12, 24, 580, 24), Checked = ctx.Settings.QuickSwitch };
+            var lblQuick = new Label { Text = L.T("Die Auswahl wird sofort gespeichert. Ausgeschaltet aktualisiert ein Klick nur die Akkustände."), Bounds = new Rectangle(32, 50, 566, 18), ForeColor = Color.DimGray };
+            gBar.Controls.AddRange(new Control[] { chkQuick, lblQuick });
+
+            var gTheme = new ThemedGroupBox { Text = L.T("Darstellung"), Bounds = new Rectangle(8, 234, 608, 134) };
             var lblLang = new Label { Text = L.T("Sprache:"), Bounds = new Rectangle(14, 100, 200, 20) };
             cmbLang = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Bounds = new Rectangle(224, 96, 140, 24) };
             foreach (var kv in L.Languages) cmbLang.Items.Add(kv.Value);
@@ -2188,7 +2442,7 @@ namespace AkkuAnzeige
             cmbTheme.SelectedIndexChanged += delegate { ApplyTheme(); };
 
             // Alarm-Ton: Lautstaerke + eigene Sounddatei
-            var gSound = new ThemedGroupBox { Text = L.T("Alarm-Ton"), Bounds = new Rectangle(8, 292, 608, 152) };
+            var gSound = new ThemedGroupBox { Text = L.T("Alarm-Ton"), Bounds = new Rectangle(8, 378, 608, 152) };
             lblVol = new Label { Bounds = new Rectangle(14, 24, 400, 20) };
             trkVol = new TrackBar { Minimum = 0, Maximum = 100, TickFrequency = 10, SmallChange = 5, LargeChange = 10, Bounds = new Rectangle(12, 44, 440, 45), Value = Math.Max(0, Math.Min(100, ctx.Settings.AlarmVolume)) };
             trkVol.ValueChanged += delegate { UpdateVolLabel(); };
@@ -2224,15 +2478,23 @@ namespace AkkuAnzeige
 
             // Datenquellen: welche (kompatiblen, installierten) Programme mit der Akku-Anzeige verknuepft sind.
             // "Treiber & Geräte suchen" erkennt nachtraeglich installierte Software und angeschlossene Hardware.
-            gSrc = new ThemedGroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 608, 118) };
+            gSrc = new ThemedGroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 540, 608, 118) };
             lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 96, 430, 18), ForeColor = Color.DimGray, AutoEllipsis = true };
             btnScan = new Button { Text = L.T("Treiber && Geräte suchen"), Bounds = new Rectangle(450, 90, 146, 26) };
             btnScan.Click += delegate { ScanSources(); };
             gSrc.Controls.Add(lblSrcHint);
             gSrc.Controls.Add(btnScan);
             BuildSources(null);
+
+            // Updates: Windows-Mitteilung + automatische Installation
+            var gUpd = new ThemedGroupBox { Text = L.T("Updates"), Bounds = new Rectangle(8, 668, 608, 118) };
+            chkUpdNotify = new CheckBox { Text = L.T("Windows-Mitteilung, wenn ein Update verfügbar ist"), Bounds = new Rectangle(12, 24, 580, 24), Checked = ctx.Settings.UpdateNotify };
+            chkAutoUpd = new CheckBox { Text = L.T("Updates automatisch herunterladen und installieren"), Bounds = new Rectangle(12, 50, 580, 24), Checked = ctx.Settings.AutoUpdate };
+            var lblUpdHint = new Label { Text = L.T("Vor der Installation fragt Windows einmal nach der Berechtigung. Während eines Vollbild-Spiels wird nicht installiert."), Bounds = new Rectangle(32, 76, 566, 36), ForeColor = Color.DimGray };
+            gUpd.Controls.AddRange(new Control[] { chkUpdNotify, chkAutoUpd, lblUpdHint });
+
             // Info: Version, Hersteller, Update-Suche (frueher eigenes Fenster)
-            gInfo = new ThemedGroupBox { Text = L.T("Info"), Bounds = new Rectangle(8, 576, 608, 176) };
+            gInfo = new ThemedGroupBox { Text = L.T("Info"), Bounds = new Rectangle(8, 796, 608, 176) };
             var pic = new PictureBox { Bounds = new Rectangle(14, 26, 56, 56), SizeMode = PictureBoxSizeMode.Zoom };
             var icoBytes = IconTools.Resource("AkkuAnzeige.win.ico");
             if (icoBytes != null) pic.Image = IconTools.FromIco(icoBytes, 56);
@@ -2249,9 +2511,9 @@ namespace AkkuAnzeige
             var btnBug = new Button { Text = "🐞 " + L.T("Bug melden"), Bounds = new Rectangle(482, 96, 112, 30) };
             btnBug.Click += delegate { using (var f = new BugReportForm(ctx.WindowIcon, DarkWanted())) f.ShowDialog(this); };
             gInfo.Controls.AddRange(new Control[] { pic, lblApp, lblVer, lblPow, btnUpd, btnWeb, btnLog, btnBug, lblUpd });
-            var spacer = new Label { Bounds = new Rectangle(8, 752, 10, 12) }; // etwas Abstand unten beim Scrollen
+            var spacer = new Label { Bounds = new Rectangle(8, 972, 10, 12) }; // etwas Abstand unten beim Scrollen
 
-            opt.Controls.AddRange(new Control[] { gProg, gTheme, gSound, gSrc, gInfo, spacer });
+            opt.Controls.AddRange(new Control[] { gProg, gBar, gTheme, gSound, gSrc, gUpd, gInfo, spacer });
             optPage = opt;
             tabs.AddPage(opt);
 
@@ -2511,6 +2773,13 @@ namespace AkkuAnzeige
 
         public void UpdateDevices(List<DeviceInfo> list) { foreach (var p in pages) p.UpdateDevices(list); }
 
+        // Geraet wurde direkt in der Taskleiste getauscht (schon gespeichert): Monitor-Reiter angleichen
+        public void ExternalDevices(string monitorId, List<DeviceEntry> devices)
+        {
+            var p = pages.FirstOrDefault(x => x.Entry.Id == monitorId);
+            if (p != null) p.ReplaceDevices(devices);
+        }
+
         // true = Fenster bleibt gueltig; false = Fenster wurde fuer die neue Sprache neu geoeffnet
         bool ApplyAll(bool reopenOnLanguageChange)
         {
@@ -2522,6 +2791,12 @@ namespace AkkuAnzeige
             ctx.Settings.AlarmFile = soundFile;
             ctx.Settings.ThemeAuto = chkThemeAuto.Checked;
             ctx.Settings.ThemeDark = cmbTheme.SelectedIndex == 1;
+            ctx.Settings.QuickSwitch = chkQuick.Checked;
+            bool updWasOff = !ctx.Settings.UpdateNotify && !ctx.Settings.AutoUpdate;
+            bool autoNew = chkAutoUpd.Checked && !ctx.Settings.AutoUpdate;
+            ctx.Settings.UpdateNotify = chkUpdNotify.Checked;
+            ctx.Settings.AutoUpdate = chkAutoUpd.Checked;
+            if ((updWasOff || autoNew) && (chkUpdNotify.Checked || chkAutoUpd.Checked)) ctx.CheckUpdatesSoon();
             foreach (var cb in srcChecks) Links.Set((string)cb.Tag, cb.Checked);
             ctx.Poll();
             string newLang = L.Languages[Math.Max(0, cmbLang.SelectedIndex)].Key;

@@ -181,7 +181,29 @@ namespace AkkuAnzeige
             { "Farbe für \"{0}\" wählen", "Choose color for \"{0}\"" },
             { "{0} wurde gefunden und ist mit der Akku-Anzeige kompatibel.\n\n{1}\n\nJetzt verknüpfen?", "{0} was found and is compatible with Battery Display.\n\n{1}\n\nLink it now?" },
             { "Das Projekt ist privat oder hat noch keine Veröffentlichung – die automatische Update-Suche ist erst möglich, wenn es öffentlich ist.", "The project is private or has no release yet – automatic update checks only work once it is public." },
-            { "Download", "Download" }
+            { "Download", "Download" },
+            // Geraet in der Taskleiste tauschen
+            { "Gerät tauschen", "Swap device" },
+            { "Kachel {0} – Gerät wählen", "Tile {0} – choose device" },
+            { "Ein Klick übernimmt das Gerät sofort.", "One click applies the device immediately." },
+            { "Keine Geräte gefunden.", "No devices found." },
+            { "Alle Einstellungen …", "All settings …" },
+            { "↔ Kachel {0}", "↔ tile {0}" },
+            { "lädt", "charging" }, { "verbunden", "connected" }, { "nicht gefunden", "not found" },
+            { "Taskleiste", "Taskbar" },
+            { "Geräte direkt in der Taskleiste tauschen (Klick auf eine Kachel)", "Swap devices right on the taskbar (click a tile)" },
+            { "Die Auswahl wird sofort gespeichert. Ausgeschaltet aktualisiert ein Klick nur die Akkustände.", "The choice is saved immediately. When off, a click only refreshes the battery levels." },
+            // Updates im Hintergrund
+            { "Updates", "Updates" },
+            { "Windows-Mitteilung, wenn ein Update verfügbar ist", "Windows notification when an update is available" },
+            { "Updates automatisch herunterladen und installieren", "Download and install updates automatically" },
+            { "Vor der Installation fragt Windows einmal nach der Berechtigung. Während eines Vollbild-Spiels wird nicht installiert.", "Windows asks for permission once before installing. Nothing is installed during a fullscreen game." },
+            { "Akku-Anzeige {0} ist verfügbar (installiert: {1}). Hier klicken, um das Update zu installieren.", "Battery Display {0} is available (installed: {1}). Click here to install the update." },
+            { "Update wird installiert", "Installing update" },
+            { "Akku-Anzeige {0} wird heruntergeladen und installiert.", "Battery Display {0} is being downloaded and installed." },
+            { "Update fehlgeschlagen", "Update failed" },
+            { "Update nicht installiert", "Update not installed" },
+            { "Hier klicken, um es von Hand zu installieren.", "Click here to install it manually." }
         };
     }
 }

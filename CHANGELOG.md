@@ -1,5 +1,11 @@
 # Changelog – Akku-Anzeige (Battery Display)
 
+## 1.3.1 Alpha – 2026-11-05
+- New: swap devices right on the taskbar – clicking a tile opens a window with all devices above it; the choice is saved instantly (Settings → Taskbar, can be turned off)
+- New: Windows notification when an update is available (Settings → Updates, can be turned off)
+- New: automatic updates – download, verify and install themselves (Settings → Updates, off by default)
+- Right-click menu matches the program design (light/dark)
+
 ## 1.3.0 Alpha – 2026-11-05
 - The icon in the taskbar notification area (bottom right) now matches the program icon
 

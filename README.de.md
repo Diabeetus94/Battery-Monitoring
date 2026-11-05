@@ -2,9 +2,9 @@
 
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
-> ⚠️ **Alpha-Version 1.3.0** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
+> ⚠️ **Alpha-Version 1.3.1** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
 
-### ⬇️ [Download: AkkuAnzeige-Setup-1.3.0-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
+### ⬇️ [Download: AkkuAnzeige-Setup-1.3.1-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
 *(Releases → neueste Version → Assets)*
 
 **Akku-Anzeige** zeigt die Akkustände deiner drahtlosen Geräte – Maus, Tastatur, Kopfhörer, Lautsprecher, Controller … – als kleine Kacheln **direkt auf der Windows-Taskleiste**. Kein Öffnen von Hersteller-Apps mehr, kein Suchen im Infobereich: Du siehst jederzeit auf einen Blick, wie voll deine Akkus sind, und wirst rechtzeitig gewarnt, bevor einer leer ist.
@@ -154,6 +154,8 @@ Die Warnung läuft **nicht** über das Windows-Benachrichtigungssystem und kommt
 - **Nach Updates suchen** – findet neue Versionen; **Update installieren** lädt sie direkt in der App herunter, prüft sie (Signatur + Prüfsumme) und installiert sie – ohne Browser
 - **Changelog** – zeigt alle Änderungen direkt in der App (auch als [CHANGELOG.de.md](CHANGELOG.de.md))
 - **Bug melden** – öffnet GitHub, um ein Issue oder einen Pull Request zu erstellen
+- **Geräte in der Taskleiste tauschen** – Klick auf eine Kachel, anderes Gerät direkt dort wählen (sofort gespeichert, abschaltbar)
+- **Update-Mitteilungen** – Windows-Mitteilung bei einer neuen Version; auf Wunsch automatische Updates
 - **Website öffnen** – öffnet diese Seite
 
 ---
