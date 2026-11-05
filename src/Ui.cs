@@ -1835,8 +1835,9 @@ namespace AkkuAnzeige
                 Text = L.K("GRENZ_INFO",
                        "Alarm kommt für alle Geräte, die auf mindestens einem Monitor angezeigt werden – als eigenes Warnfenster " +
                        "mit Warnton, das auch bei \"Nicht stören\", stummgeschalteten Benachrichtigungen und im Spielmodus erscheint.\n\n" +
-                       "Logitech-Geräte kommen direkt aus G HUB (LGSTray nur als Ersatz). Bluetooth-Geräte erscheinen, " +
-                       "sobald Windows ihren Akkustand kennt.\n\nÄnderungen siehst du sofort als Vorschau. " +
+                       "Logitech-Geräte kommen aus G HUB – ohne G HUB aus LGSTray oder direkt vom Empfänger (HID++). " +
+                       "Bluetooth-Geräte erscheinen, sobald Windows ihren Akkustand kennt; AirPods/Beats über ihre Bluetooth-LE-Signale.\n\n" +
+                       "Änderungen siehst du sofort als Vorschau. " +
                        "Gespeichert wird erst mit \"Übernehmen\" oder \"OK\" – \"Abbrechen\" verwirft sie."),
                 Bounds = new Rectangle(16, 330, 600, 160),
                 ForeColor = Color.DimGray
@@ -1906,19 +1907,22 @@ namespace AkkuAnzeige
                        "Die Akku-Kacheln auf der Taskleiste passen sich immer automatisch an die Farbe der Taskleiste an."));
 
             // Datenquellen: welche (kompatiblen, installierten) Programme mit der Akku-Anzeige verknuepft sind
-            var gSrc = new GroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 624, 112) };
-            int sx = 12, sy = 24;
-            var srcs = new List<KeyValuePair<string, string>> { new KeyValuePair<string, string>(Links.Bluetooth, L.T("Windows-Bluetooth (eingebaut)")) };
+            var gSrc = new GroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 624, 118) };
+            int sx = 12, sy = 22;
+            bool en = L.Current == "en";
+            var srcs = Links.BuiltIns.Select(b => new { Key = b.Key, Name = en ? b.NameEn : b.NameDe, Note = en ? b.NoteEn : b.NoteDe }).ToList();
             foreach (var v in Vendors.Detect(true).Where(x => x.Support == VendorSupport.Supported))
-                srcs.Add(new KeyValuePair<string, string>(v.Key, v.Name));
-            foreach (var kv in srcs)
+                srcs.Add(new { Key = v.Key, Name = v.Name, Note = en ? v.NoteEn : v.NoteDe });
+            var srcTip = new ToolTip { AutoPopDelay = 20000 };
+            foreach (var src in srcs)
             {
-                var cb = new CheckBox { Text = kv.Value, Tag = kv.Key, Checked = Links.Enabled(kv.Key), Bounds = new Rectangle(sx, sy, 296, 24) };
+                var cb = new CheckBox { Text = src.Name, Tag = src.Key, Checked = Links.Enabled(src.Key), Bounds = new Rectangle(sx, sy, 200, 24), AutoEllipsis = true };
+                srcTip.SetToolTip(cb, src.Note);
                 srcChecks.Add(cb);
                 gSrc.Controls.Add(cb);
-                if (sx == 12) sx = 316; else { sx = 12; sy += 26; }
+                if (sx < 416) sx += 202; else { sx = 12; sy += 24; }
             }
-            var lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 86, 600, 18), ForeColor = Color.DimGray };
+            var lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 96, 600, 18), ForeColor = Color.DimGray };
             gSrc.Controls.Add(lblSrcHint);
             opt.Controls.AddRange(new Control[] { gProg, gTheme, gSound, gSrc });
             tabs.AddPage(opt);

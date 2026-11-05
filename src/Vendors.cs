@@ -130,11 +130,37 @@ namespace AkkuAnzeige
         }
     }
 
+    public class BuiltInSource
+    {
+        public string Key, NameDe, NameEn, NoteDe, NoteEn;
+        public BuiltInSource(string key, string nameDe, string nameEn, string noteDe, string noteEn)
+        { Key = key; NameDe = nameDe; NameEn = nameEn; NoteDe = noteDe; NoteEn = noteEn; }
+    }
+
     // Welche Datenquellen mit der Akku-Anzeige verknuepft sind (HKCU\Software\AkkuAnzeige\Links)
     public static class Links
     {
         const string RegPath = @"Software\AkkuAnzeige\Links";
         public const string Bluetooth = "bluetooth";
+        public const string LogiHid = "logihid";
+        public const string HyperX = "hyperx";
+        public const string DualSense = "dualsense";
+        public const string AirPods = "airpods";
+
+        // Eingebaute Quellen (brauchen keine Hersteller-Software)
+        public static readonly BuiltInSource[] BuiltIns =
+        {
+            new BuiltInSource(Bluetooth, "Windows-Bluetooth (eingebaut)", "Windows Bluetooth (built in)",
+                              "Kopfhörer, Lautsprecher, Handys …", "headphones, speakers, phones …"),
+            new BuiltInSource(LogiHid, "Logitech direkt (HID++)", "Logitech direct (HID++)",
+                              "LIGHTSPEED-/Unifying-/Bolt-Empfänger ohne G HUB", "LIGHTSPEED / Unifying / Bolt receivers without G HUB"),
+            new BuiltInSource(HyperX, "HyperX direkt", "HyperX direct",
+                              "Cloud III S Wireless ohne NGENUITY", "Cloud III S Wireless without NGENUITY"),
+            new BuiltInSource(DualSense, "PlayStation DualSense", "PlayStation DualSense",
+                              "USB; Bluetooth, sobald z.B. Steam den Controller nutzt", "USB; Bluetooth once e.g. Steam uses the controller"),
+            new BuiltInSource(AirPods, "AirPods / Beats (Bluetooth LE)", "AirPods / Beats (Bluetooth LE)",
+                              "Akkustand der Ohrhörer aus den BLE-Signalen", "earbud battery from their BLE broadcasts")
+        };
 
         // null = noch nie gefragt
         public static bool? Get(string key)

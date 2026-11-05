@@ -228,10 +228,12 @@ namespace AkkuAnzeige
             var gVend = new GroupBox { Text = S("Erkannte Treiber-Software – Haken = mit Akku-Anzeige verknüpfen", "Detected driver software – checked = link with Battery Display"), Bounds = new Rectangle(14, 136, 592, 190) };
             lvVend = new ListView { View = View.Details, CheckBoxes = true, FullRowSelect = true, Bounds = new Rectangle(10, 22, 572, 158), HeaderStyle = ColumnHeaderStyle.Nonclickable };
             lvVend.Columns.Add("Software", 175); lvVend.Columns.Add("Status", 130); lvVend.Columns.Add(S("Hinweis", "Note"), 245);
-            var bt = new ListViewItem(new[] { S("Windows-Bluetooth (eingebaut)", "Windows Bluetooth (built in)"), S("kompatibel", "compatible"),
-                                              S("Kopfhörer, Lautsprecher, Handys …", "headphones, speakers, phones …") }) { Tag = Links.Bluetooth };
-            bt.Checked = Links.Get(Links.Bluetooth) ?? true;
-            lvVend.Items.Add(bt);
+            foreach (var b in Links.BuiltIns)
+            {
+                var bt = new ListViewItem(new[] { S(b.NameDe, b.NameEn), S("kompatibel", "compatible"), S(b.NoteDe, b.NoteEn) }) { Tag = b.Key };
+                bt.Checked = Links.Get(b.Key) ?? true;
+                lvVend.Items.Add(bt);
+            }
             foreach (var v in Vendors.Detect(false))
             {
                 bool ok = v.Support == VendorSupport.Supported;

@@ -179,7 +179,13 @@ Die Warnung läuft **nicht** über das Windows-Benachrichtigungssystem und kommt
 | **Logitech G HUB** | ✅ kompatibel | Akkustand, Laden, Aktiv / Standby / Aus |
 | **Windows-Bluetooth** (eingebaut) | ✅ kompatibel | Akkustand von Kopfhörern, Lautsprechern, Handys … |
 | **LGSTray** | ✅ Ersatzquelle | Logitech-Akkustände, falls G HUB nicht läuft |
+| **Logitech direkt** (HID++, eingebaut) | ✅ kompatibel | LIGHTSPEED-/Unifying-/Bolt-Empfänger und USB-Geräte ohne G HUB: Name, Typ, Akkustand, Laden, An / Aus |
+| **HyperX direkt** (eingebaut) | ✅ kompatibel | Cloud III S Wireless (Dongle `03F0:06BE` / `02CC`) ohne NGENUITY: Akkustand, Laden, An / Aus |
+| **PlayStation DualSense** (eingebaut) | ✅ kompatibel | USB immer; Bluetooth, sobald ein Programm wie Steam den Controller auf den vollen Bericht umgeschaltet hat (nur passives Mitlesen) |
+| **AirPods / Beats** (Bluetooth LE, eingebaut) | ✅ kompatibel | Akkustand der Ohrhörer aus ihren Bluetooth-LE-Signalen (der leerere zählt); sucht nur, solange ein Apple-Audiogerät verbunden ist |
 | Razer Synapse, Corsair iCUE, SteelSeries GG, HyperX NGENUITY, ASUS Armoury Crate, Logitech Options+ | 🔍 wird erkannt | Akkustände noch nicht unterstützt |
+
+Alle eingebauten Quellen *lesen* nur – sie ändern keine Einstellungen am Gerät.
 
 ---
 
@@ -209,7 +215,11 @@ Das Skript kompiliert App und Setup, signiert beide mit dem lokalen Zertifikat �
 
 | Datei | Inhalt |
 |---|---|
-| `src/AkkuAnzeige.cs` | Datenquellen (G HUB, LGSTray, Bluetooth), Monitor-Erkennung, Eingabe-Aktivität |
+| `src/AkkuAnzeige.cs` | Datenquellen (G HUB, LGSTray, Bluetooth), Taskleisten-Verfolgung, Monitor-Erkennung, Eingabe-Aktivität |
+| `src/Hid.cs` | direkter HID-Zugriff (Aufzählen, Lesen/Schreiben mit Timeout) |
+| `src/LogiHidpp.cs` | Logitech HID++ 2.0 (Empfänger und USB-Geräte) |
+| `src/DirectHid.cs` | HyperX Cloud III S Wireless, DualSense |
+| `src/AppleBle.cs` | AirPods / Beats über Bluetooth-LE-Werbepakete (WinRT) |
 | `src/Ui.cs` | Kacheln, Einstellungsfenster, Design, Alarm |
 | `src/Info.cs` | Info-Fenster und Update-Suche |
 | `src/Lang.cs` | Übersetzungen |
@@ -221,7 +231,8 @@ Das Skript kompiliert App und Setup, signiert beide mit dem lokalen Zertifikat �
 
 ## Bekannte Einschränkungen (Alpha)
 
-- Akkustände von Razer, Corsair, SteelSeries, HyperX und ASUS werden noch nicht gelesen.
+- Akkustände von Razer, Corsair, SteelSeries, ASUS und anderen HyperX-Headsets werden noch nicht gelesen. NuPhy-Tastaturen (2,4-GHz-Dongle `19F5:2620`) lassen sich ebenfalls nicht auslesen – NuPhys Protokoll ist verschlüsselt, und NuPhys eigene Software zeigt den Akku dieser Modelle selbst nicht an.
+- DualSense über Bluetooth zeigt nur einen Akkustand, solange ein Programm wie Steam den Controller nutzt (selbst umschalten würde DirectInput-Spiele stören, bis der Controller aus- und wieder eingeschaltet wird).
 - Bei Spielen im **exklusiven** Vollbild kann kein Fenster darüber erscheinen – dort hörst du nur den Warnton (randloses Vollbild funktioniert).
 - Logitech-Standby wird erkannt, sobald sich das Gerät vom Empfänger trennt; wenn nur die Beleuchtung ausgeht, gilt es noch als aktiv (optional einstellbar).
 - Die automatische Update-Suche funktioniert erst, wenn dieses Projekt öffentlich ist.

@@ -181,8 +181,13 @@ namespace AkkuAnzeige
             List<DeviceInfo> logi = null;
             if (Links.Enabled("ghub")) { try { logi = GHub.Read(); } catch { logi = null; } }
             if (logi == null && Links.Enabled("lgstray")) { try { logi = ReadLogitech(); } catch { logi = null; } }
+            // ohne G HUB / LGSTray: Logitech-Empfaenger und -Kabelgeraete direkt ueber HID++ abfragen
+            if ((logi == null || logi.Count == 0) && Links.Enabled(Links.LogiHid)) { try { logi = LogiHidpp.Read(); } catch (Exception ex) { Program.LogError(ex); } }
             if (logi != null) list.AddRange(logi);
-            if (Links.Enabled(Links.Bluetooth)) { try { list.AddRange(ReadBluetooth()); } catch { } }
+            if (Links.Enabled(Links.Bluetooth)) { try { list.AddRange(ReadBluetooth()); } catch (Exception ex) { Program.LogError(ex); } }
+            else { try { AppleBle.Watch(false); } catch { } }
+            if (Links.Enabled(Links.HyperX)) { try { list.AddRange(HyperX.Read()); } catch (Exception ex) { Program.LogError(ex); } }
+            if (Links.Enabled(Links.DualSense)) { try { list.AddRange(DualSense.Read()); } catch (Exception ex) { Program.LogError(ex); } }
             return list;
         }
 
@@ -343,7 +348,7 @@ namespace AkkuAnzeige
             return s.Length == 0 ? null : s;
         }
 
-        class BtNode { public string Name; public bool Connected; public bool IsLe; public bool HasMain; public int? Battery; public string BattProfile; }
+        class BtNode { public string Name; public bool Connected; public bool IsLe; public bool HasMain; public int? Battery; public string BattProfile; public int Vid = -1, Pid = -1; public bool Audio; }
 
         static List<DeviceInfo> ReadBluetooth()
         {
@@ -376,6 +381,10 @@ namespace AkkuAnzeige
 
                         BtNode n;
                         if (!nodes.TryGetValue(mac, out n)) { n = new BtNode(); nodes[mac] = n; }
+                        // Hersteller/Modell aus den Profil-Eintraegen, z.B. "..._VID&0001004C_PID&2027\..."
+                        var vp = Regex.Match(iid, @"_VID&[0-9A-F]{4}([0-9A-F]{4})_PID&([0-9A-F]{4})");
+                        if (vp.Success && n.Vid < 0) { n.Vid = Convert.ToInt32(vp.Groups[1].Value, 16); n.Pid = Convert.ToInt32(vp.Groups[2].Value, 16); }
+                        if (iid.Contains("{0000110B-") || iid.Contains("{0000111E-")) n.Audio = true; // Audio-Senke / Freisprech-Profil
                         if (isMain)
                         {
                             n.HasMain = true;
@@ -396,10 +405,14 @@ namespace AkkuAnzeige
             }
 
             var list = new List<DeviceInfo>();
+            bool appleConnected = false;
+            bool airpods = Links.Enabled(Links.AirPods);
             foreach (var kv in nodes)
             {
                 var n = kv.Value;
-                if (!n.Battery.HasValue || !n.HasMain) continue;
+                if (!n.HasMain) continue;
+                bool apple = airpods && n.Vid == 0x004C && n.Audio && !n.Battery.HasValue; // AirPods/Beats: Windows kennt keinen Akkustand
+                if (!n.Battery.HasValue && !apple) continue;
                 string name = n.Name ?? ("Bluetooth " + kv.Key);
                 var di = new DeviceInfo();
                 di.Id = "bt:" + kv.Key;
@@ -408,9 +421,33 @@ namespace AkkuAnzeige
                 di.Connected = n.Connected;
                 di.Percent = n.Battery; // auch getrennt: letzter von Windows gemerkter Wert
                 di.DefaultIcon = GuessIcon(name, n.BattProfile);
+                if (apple)
+                {
+                    di.Source = "Bluetooth (Apple)";
+                    di.DefaultIcon = "Kopfhörer";
+                    if (n.Connected)
+                    {
+                        appleConnected = true;
+                        ApplyPods(di, n.Pid);
+                    }
+                }
                 list.Add(di);
             }
+            // BLE-Scanner nur, solange AirPods/Beats verbunden sind
+            try { AppleBle.Watch(appleConnected); } catch (Exception ex) { Program.LogError(ex); }
             return list;
+        }
+
+        // Akkustand der Ohrhoerer: der leerere zaehlt (Case wird ignoriert); fehlt ein Wert, der andere
+        static void ApplyPods(DeviceInfo di, int model)
+        {
+            ApplePods p;
+            try { p = AppleBle.Get(model); } catch { return; }
+            if (p == null) return;
+            if (p.Left.HasValue && p.Right.HasValue) di.Percent = Math.Min(p.Left.Value, p.Right.Value);
+            else di.Percent = p.Left ?? p.Right;
+            if (!di.Percent.HasValue) return;
+            di.Charging = (!p.Left.HasValue || p.LeftCharging) && (!p.Right.HasValue || p.RightCharging);
         }
 
         static string GuessIcon(string name, string profile)
