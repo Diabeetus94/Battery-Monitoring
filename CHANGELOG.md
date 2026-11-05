@@ -1,5 +1,8 @@
 # Changelog – Akku-Anzeige (Battery Display)
 
+## 1.3.0 Alpha – 2026-11-05
+- The icon in the taskbar notification area (bottom right) now matches the program icon
+
 ## 1.2.0.4 Alpha – 2026-11-05
 - New: "Report a bug" under Settings → About – leads straight to GitHub: "Create issue" (report bugs, ideas) or "Create pull request" (suggest a code change)
 - © 2026 Bobohatt & Diabeetus

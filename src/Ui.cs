@@ -307,6 +307,13 @@ namespace AkkuAnzeige
         {
             // Fenster-Symbol (oben links / Taskleiste): Bluetooth_Batterie_Minimal.ico
             WindowIcon = LoadIconRes("AkkuAnzeige.win.ico");
+            // Infobereich (unten rechts) nutzt dasselbe Programm-Symbol, in kleiner Groesse
+            try
+            {
+                using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("AkkuAnzeige.win.ico"))
+                    if (s != null) { var ic = new Icon(s, SystemInformation.SmallIconSize); if (WindowIcon == null) WindowIcon = ic; return ic; }
+            }
+            catch { }
             try
             {
                 using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("AkkuAnzeige.app.ico"))

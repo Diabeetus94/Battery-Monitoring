@@ -1,5 +1,8 @@
 # Changelog – Akku-Anzeige
 
+## 1.3.0 Alpha – 05.11.2026
+- Symbol im Infobereich der Taskleiste (unten rechts) ist jetzt dasselbe wie das Programm-Symbol
+
 ## 1.2.0.4 Alpha – 05.11.2026
 - Neu: „Bug melden“ unter Einstellungen → Info – führt direkt zu GitHub: „Issue erstellen“ (Fehler melden, Ideen) oder „Pull Request erstellen“ (Code-Änderung vorschlagen)
 - © 2026 Bobohatt & Diabeetus
