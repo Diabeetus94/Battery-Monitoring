@@ -1,5 +1,10 @@
 # Changelog – Akku-Anzeige
 
+## 1.3.2.2 Alpha – 05.11.2026
+- Behoben: Das Rechtsklick-Menü der Kacheln schloss sich bei einem Klick daneben nicht – erst ein Klick auf eine Kachel, der dann auch die Geräteauswahl öffnete
+- Setup: gleiche Begriffe wie in der App („kompatibel“, „installiert – aber nicht kompatibel“)
+- Aufgeräumt: nicht mehr genutzte Programmteile und Texte entfernt
+
 ## 1.3.2.1 Alpha – 05.11.2026
 - Datenquellen zeigen jetzt den Status jeder Quelle: „kompatibel · liefert 2 Geräte“, „kompatibel · Programm läuft nicht“, „kompatibel · antwortet gerade nicht“ usw. – wird laufend aktualisiert
 - Installierte, aber nicht unterstützte Hersteller-Software steht mit in der Liste: „installiert – aber nicht kompatibel“

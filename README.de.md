@@ -2,11 +2,11 @@
 
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
-> ⚠️ **Alpha-Version 1.3.2.1** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
+> ⚠️ **Alpha-Version 1.3.2.2** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
 >
 > ℹ️ **Nicht alle Geräte und Hersteller können getestet werden.** Getestet wird mit den Geräten, die uns selbst zur Verfügung stehen (vor allem Logitech über G HUB / Empfänger und Bluetooth-Kopfhörer). Andere Hersteller und Modelle sind teils ungetestet – siehe [Unterstützte Datenquellen](#unterstützte-datenquellen). Wenn dein Gerät nicht oder falsch angezeigt wird, melde es gern als *Issue*.
 
-### ⬇️ [Download: AkkuAnzeige-Setup-1.3.2.1-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
+### ⬇️ [Download: AkkuAnzeige-Setup-1.3.2.2-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
 *(Releases → neueste Version → Assets)*
 
 **Akku-Anzeige** zeigt die Akkustände deiner drahtlosen Geräte – Maus, Tastatur, Kopfhörer, Lautsprecher, Controller … – als kleine Kacheln **direkt auf der Windows-Taskleiste**. Kein Öffnen von Hersteller-Apps mehr, kein Suchen im Infobereich: Du siehst jederzeit auf einen Blick, wie voll deine Akkus sind, und wirst rechtzeitig gewarnt, bevor einer leer ist.
@@ -255,13 +255,16 @@ Das Skript kompiliert App und Setup, signiert beide mit dem lokalen Zertifikat �
 
 | Datei | Inhalt |
 |---|---|
-| `src/AkkuAnzeige.cs` | Datenquellen (G HUB, LGSTray, Bluetooth), Taskleisten-Verfolgung, Monitor-Erkennung, Eingabe-Aktivität |
+| `src/AkkuAnzeige.cs` | Datenquellen (G HUB, LGSTray, Bluetooth) und ihr Status, Taskleisten-Verfolgung, Monitor-Erkennung, Eingabe-Aktivität |
 | `src/Hid.cs` | direkter HID-Zugriff (Aufzählen, Lesen/Schreiben mit Timeout) |
 | `src/LogiHidpp.cs` | Logitech HID++ 2.0 (Empfänger und USB-Geräte) |
 | `src/DirectHid.cs` | HyperX Cloud III S Wireless, DualSense |
 | `src/AppleBle.cs` | AirPods / Beats über Bluetooth-LE-Werbepakete (WinRT) |
-| `src/Ui.cs` | Kacheln, Einstellungsfenster, Design, Alarm |
-| `src/Info.cs` | Info-Fenster und Update-Suche |
+| `src/Ui.cs` | Kacheln, Einstellungsfenster, Design, Alarm, Update-Mitteilungen |
+| `src/Switcher.cs` | Geräte-Tausch-Fenster über den Kacheln, Farben des Rechtsklick-Menüs |
+| `src/Info.cs` | Programmdaten (Version, Hersteller) und Update-Suche |
+| `src/Update.cs` | Update herunterladen, prüfen und installieren; Changelog-Fenster |
+| `src/BugReport.cs` | „Bug melden“ (Weiterleitung zu GitHub) |
 | `src/Lang.cs` | Übersetzungen |
 | `src/Vendors.cs` | Erkennung installierter Treiber-Software, Verknüpfungen |
 | `src/Setup.cs` | Installationsprogramm |

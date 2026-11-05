@@ -2,11 +2,11 @@
 
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
-> ⚠️ **Alpha version 1.3.2.1** – the program is still being tested. Please report bugs as an *Issue*.
+> ⚠️ **Alpha version 1.3.2.2** – the program is still being tested. Please report bugs as an *Issue*.
 >
 > ℹ️ **Not every device and manufacturer can be tested.** Testing is done with the devices we have ourselves (mainly Logitech via G HUB / receiver and Bluetooth headphones). Other manufacturers and models are partly untested – see [Supported data sources](#supported-data-sources). If your device is missing or shown incorrectly, please report it as an *Issue*.
 
-### ⬇️ [Download: AkkuAnzeige-Setup-1.3.2.1-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
+### ⬇️ [Download: AkkuAnzeige-Setup-1.3.2.2-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
 *(Releases → latest version → Assets)*
 
 **Akku-Anzeige** ("Battery Display") shows the battery levels of your wireless devices – mouse, keyboard, headphones, speakers, controllers … – as small tiles **right on the Windows taskbar**. No more opening vendor apps or digging through the notification area: you always see at a glance how full your batteries are, and you get warned before one runs empty.
@@ -255,13 +255,16 @@ The script compiles the app and the setup, signs both with the local certificate
 
 | File | Content |
 |---|---|
-| `src/AkkuAnzeige.cs` | data sources (G HUB, LGSTray, Bluetooth), taskbar tracking, monitor detection, input activity |
+| `src/AkkuAnzeige.cs` | data sources (G HUB, LGSTray, Bluetooth) and their status, taskbar tracking, monitor detection, input activity |
 | `src/Hid.cs` | raw HID access (enumeration, reading/writing with timeout) |
 | `src/LogiHidpp.cs` | Logitech HID++ 2.0 (receivers and USB devices) |
 | `src/DirectHid.cs` | HyperX Cloud III S Wireless, DualSense |
 | `src/AppleBle.cs` | AirPods / Beats via Bluetooth LE advertisements (WinRT) |
-| `src/Ui.cs` | tiles, settings window, design, alarm |
-| `src/Info.cs` | About window and update check |
+| `src/Ui.cs` | tiles, settings window, design, alarm, update notifications |
+| `src/Switcher.cs` | device swap window above the tiles, right-click menu colors |
+| `src/Info.cs` | program data (version, publisher) and update check |
+| `src/Update.cs` | download, verify and install updates; changelog window |
+| `src/BugReport.cs` | "Report a bug" (redirect to GitHub) |
 | `src/Lang.cs` | translations |
 | `src/Vendors.cs` | detection of installed driver software, links |
 | `src/Setup.cs` | installer |

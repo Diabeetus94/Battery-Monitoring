@@ -530,7 +530,35 @@ namespace AkkuAnzeige
             return SystemIcons.Application;
         }
 
-        public void ShowMenu(Point p) { menu.Show(p); }
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+
+        // Rechtsklick-Menue der Kacheln. Die Kacheln werden nie aktiv (damit Spiele den Fokus behalten) – darum
+        // merkt das Menue Klicks ausserhalb nicht von selbst. Loesung: Menue in den Vordergrund holen und zusaetzlich
+        // jeden Mausklick ausserhalb des Menues erkennen und es dann schliessen.
+        System.Windows.Forms.Timer menuWatch;
+        int menuClosedAt = -100000;
+        public bool MenuJustClosed { get { return Environment.TickCount - menuClosedAt < 400; } }
+
+        public void ShowMenu(Point p)
+        {
+            menu.Show(p);
+            try { SetForegroundWindow(menu.Handle); } catch { }
+            if (menuWatch == null)
+            {
+                menuWatch = new System.Windows.Forms.Timer { Interval = 40 };
+                menuWatch.Tick += delegate
+                {
+                    if (!menu.Visible) { menuWatch.Stop(); return; }
+                    if (Control.MouseButtons != MouseButtons.None && !menu.Bounds.Contains(Cursor.Position))
+                    {
+                        menuWatch.Stop();
+                        menu.Close(ToolStripDropDownCloseReason.AppClicked);
+                    }
+                };
+                menu.Closed += delegate { menuClosedAt = Environment.TickCount; };
+            }
+            menuWatch.Start();
+        }
 
         System.Windows.Forms.Timer vendorTimer;
         bool askingVendors;
@@ -1036,6 +1064,8 @@ namespace AkkuAnzeige
             {
                 if (e.Button == MouseButtons.Right) { ctx.ShowMenu(Cursor.Position); return; }
                 if (e.Button != MouseButtons.Left) return;
+                // dieser Klick hat nur das offene Rechtsklick-Menue geschlossen -> keine Geraeteauswahl oeffnen
+                if (ctx.MenuJustClosed) return;
                 int i = TileAt(e.X);
                 // Linksklick auf eine Kachel: Geraet direkt hier tauschen (abschaltbar), sonst nur aktualisieren
                 if (ctx.Settings.QuickSwitch && i >= 0 && cfg.Id != null)

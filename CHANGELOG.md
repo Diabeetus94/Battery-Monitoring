@@ -1,5 +1,10 @@
 # Changelog – Akku-Anzeige (Battery Display)
 
+## 1.3.2.2 Alpha – 2026-11-05
+- Fixed: the tiles' right-click menu did not close when clicking elsewhere – only a click on a tile closed it, which then also opened the device selection
+- Setup: same wording as in the app ("compatible", "installed – but not compatible")
+- Cleanup: removed unused code and texts
+
 ## 1.3.2.1 Alpha – 2026-11-05
 - Data sources now show the status of each source: "compatible · delivers 2 devices", "compatible · program is not running", "compatible · not responding right now" etc. – updated continuously
 - Installed but unsupported vendor software is listed too: "installed – but not compatible"

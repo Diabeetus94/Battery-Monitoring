@@ -268,7 +268,9 @@ namespace AkkuAnzeige
             foreach (var v in Vendors.Detect(false))
             {
                 bool ok = v.Support == VendorSupport.Supported;
-                string st = (v.Running ? S("läuft", "running") : S("installiert", "installed")) + " · " + (ok ? S("kompatibel", "compatible") : S("nicht kompatibel", "not compatible"));
+                // gleiche Begriffe wie unter "Datenquellen" in der App
+                string st = ok ? S("kompatibel", "compatible") + (v.Running ? " · " + S("läuft", "running") : "")
+                               : S("installiert – aber nicht kompatibel", "installed – but not compatible");
                 var it = new ListViewItem(new[] { v.Name + (string.IsNullOrEmpty(v.Version) ? "" : " " + v.Version), st, SetupProgram.De ? v.NoteDe : v.NoteEn });
                 it.Tag = ok ? v.Key : null;            // nur kompatible lassen sich verknuepfen
                 it.Checked = ok && (Links.Get(v.Key) ?? true);
