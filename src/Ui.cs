@@ -2487,7 +2487,7 @@ namespace AkkuAnzeige
             BuildSources(QuickScan(), false);
 
             // Updates: Windows-Mitteilung + automatische Installation
-            var gUpd = new ThemedGroupBox { Text = L.T("Updates"), Bounds = new Rectangle(8, 668, 608, 118) };
+            gUpd = new ThemedGroupBox { Text = L.T("Updates"), Bounds = new Rectangle(8, 668, 608, 118) };
             chkUpdNotify = new CheckBox { Text = L.T("Windows-Mitteilung, wenn ein Update verfügbar ist"), Bounds = new Rectangle(12, 24, 580, 24), Checked = ctx.Settings.UpdateNotify };
             chkAutoUpd = new CheckBox { Text = L.T("Updates automatisch herunterladen und installieren"), Bounds = new Rectangle(12, 50, 580, 24), Checked = ctx.Settings.AutoUpdate };
             var lblUpdHint = new Label { Text = L.T("Vor der Installation fragt Windows einmal nach der Berechtigung. Während eines Vollbild-Spiels wird nicht installiert."), Bounds = new Rectangle(32, 76, 566, 36), ForeColor = Color.DimGray };
@@ -2511,9 +2511,10 @@ namespace AkkuAnzeige
             var btnBug = new Button { Text = "🐞 " + L.T("Bug melden"), Bounds = new Rectangle(482, 96, 112, 30) };
             btnBug.Click += delegate { using (var f = new BugReportForm(ctx.WindowIcon, DarkWanted())) f.ShowDialog(this); };
             gInfo.Controls.AddRange(new Control[] { pic, lblApp, lblVer, lblPow, btnUpd, btnWeb, btnLog, btnBug, lblUpd });
-            var spacer = new Label { Bounds = new Rectangle(8, 972, 10, 12) }; // etwas Abstand unten beim Scrollen
+            spacer = new Label { Bounds = new Rectangle(8, 972, 10, 12) }; // etwas Abstand unten beim Scrollen
 
             opt.Controls.AddRange(new Control[] { gProg, gBar, gTheme, gSound, gSrc, gUpd, gInfo, spacer });
+            LayoutOptGroups();
             optPage = opt;
             tabs.AddPage(opt);
 
@@ -2574,6 +2575,7 @@ namespace AkkuAnzeige
             bool dark = DarkWanted();
             SuspendLayout();
             Theme.Apply(this, dark);
+            RefreshSourceStatus(); // Statusfarben passend zu hell/dunkel
             ResumeLayout();
             Invalidate(true);
         }
@@ -2645,7 +2647,8 @@ namespace AkkuAnzeige
             soundFile = ((SoundItem)cmbSound.Items[idx]).Path;
         }
 
-        GroupBox gSrc;
+        GroupBox gSrc, gUpd;
+        Label spacer;
         Label lblSrcHint;
         Button btnScan;
         readonly ToolTip srcTip = new ToolTip { AutoPopDelay = 20000 };
@@ -2677,16 +2680,33 @@ namespace AkkuAnzeige
         //  - eingebaute Lesewege (ohne Zusatzprogramm), wenn passende Hardware angeschlossen ist
         //  - installierte, kompatible Hersteller-Software
         // manual = Ergebnis von "Treiber & Geräte suchen" (neu Aufgetauchtes wird markiert)
+        // eine Zeile unter "Datenquellen": [Haken] Name | Status [▸]  + aufklappbare Geraeteliste darunter
+        class SrcRow
+        {
+            public string Key;          // null = installiert, aber nicht kompatibel (nur Anzeige)
+            public CheckBox Check;      // kompatible Quelle
+            public Label Name;          // nicht kompatible Quelle
+            public Label Status;
+            public Label Toggle;        // "Geraete ▸" – Geraeteliste auf-/zuklappen
+            public Label Detail;        // Geraeteliste
+            public bool Expanded;
+            public int Lines;           // Zeilen der Geraeteliste
+        }
+        readonly List<SrcRow> srcRowList = new List<SrcRow>();
+        readonly HashSet<string> srcExpanded = new HashSet<string>(); // bleibt bei neuem Aufbau (Suche) erhalten
+
         void BuildSources(SourceScan scan, bool manual)
         {
-            foreach (var cb in srcChecks) { srcState[(string)cb.Tag] = cb.Checked; gSrc.Controls.Remove(cb); cb.Dispose(); }
-            srcChecks.Clear();
+            foreach (var cb in srcChecks) srcState[(string)cb.Tag] = cb.Checked;
+            foreach (var r in srcRowList)
+                foreach (var c in new Control[] { r.Check, r.Name, r.Status, r.Toggle, r.Detail })
+                    if (c != null) { gSrc.Controls.Remove(c); c.Dispose(); }
+            srcRowList.Clear(); srcChecks.Clear();
             bool en = L.Current == "en";
             var srcs = Links.BuiltIns.Where(b => BuiltInPresent(scan, b.Key))
                 .Select(b => new { Key = b.Key, Name = en ? b.NameEn : b.NameDe, Note = (en ? b.NoteEn : b.NoteDe) + "\n" + L.T("Eingebaut – liest das Gerät direkt, ohne Zusatzprogramm."), BuiltIn = true }).ToList();
             foreach (var v in scan.Vendors.Where(x => x.Support == VendorSupport.Supported))
                 srcs.Add(new { Key = v.Key, Name = v.Name, Note = (en ? v.NoteEn : v.NoteDe) + "\n" + (v.Portable ? L.T("Läuft auf diesem PC.") : L.T("Auf diesem PC installiert.")), BuiltIn = false });
-            int sx = 12, sy = 22;
             var newOnes = new List<string>();
             bool newSoft = false;
             foreach (var src in srcs)
@@ -2695,12 +2715,40 @@ namespace AkkuAnzeige
                 bool isNew = manual && srcShown != null && !srcShown.Contains(src.Key);
                 // neu gefundene Software nur anbieten (nicht anhaken); neu angeschlossene Hardware gleich nutzen
                 bool on = known ? srcState[src.Key] : (isNew && !src.BuiltIn ? false : Links.Enabled(src.Key));
-                var cb = new CheckBox { Text = src.Name + (isNew ? " (" + L.T("neu") + ")" : ""), Tag = src.Key, Bounds = new Rectangle(sx, sy, 190, 24), AutoEllipsis = true, Checked = on };
-                srcTip.SetToolTip(cb, src.Note);
+                var row = new SrcRow { Key = src.Key, Expanded = srcExpanded.Contains(src.Key) };
+                row.Check = new CheckBox { Text = src.Name + (isNew ? " (" + L.T("neu") + ")" : ""), Tag = src.Key, AutoEllipsis = true, Checked = on };
+                row.Status = new Label { AutoEllipsis = true, Tag = "keep" };
+                row.Toggle = new Label { Visible = false, Tag = "keep", Cursor = Cursors.Hand, TextAlign = ContentAlignment.MiddleRight };
+                row.Detail = new Label { Visible = false, UseMnemonic = false };
+                srcTip.SetToolTip(row.Check, src.Note);
+                srcTip.SetToolTip(row.Status, src.Note);
+                srcTip.SetToolTip(row.Toggle, L.T("Gelieferte Geräte anzeigen"));
                 if (isNew) { newOnes.Add(src.Name); newSoft |= !src.BuiltIn; }
-                srcChecks.Add(cb);
-                gSrc.Controls.Add(cb);
-                if (sx < 404) sx += 196; else { sx = 12; sy += 24; }
+                var rr = row;
+                EventHandler toggle = delegate
+                {
+                    if (!rr.Toggle.Visible) return;
+                    rr.Expanded = !rr.Expanded;
+                    if (rr.Expanded) srcExpanded.Add(rr.Key); else srcExpanded.Remove(rr.Key);
+                    RefreshSourceStatus();
+                };
+                row.Toggle.Click += toggle;
+                row.Status.Click += toggle;
+                row.Check.CheckedChanged += delegate { RefreshSourceStatus(); };
+                srcChecks.Add(row.Check);
+                srcRowList.Add(row);
+                gSrc.Controls.AddRange(new Control[] { row.Check, row.Status, row.Toggle, row.Detail });
+            }
+            // installierte, aber nicht kompatible Hersteller-Software: nur anzeigen (kein Haken)
+            foreach (var v in scan.Vendors.Where(x => x.Support != VendorSupport.Supported))
+            {
+                var row = new SrcRow();
+                row.Name = new Label { Text = v.Name, AutoEllipsis = true, ForeColor = Color.DimGray };
+                row.Status = new Label { Text = "✖  " + L.T("installiert – aber nicht kompatibel"), AutoEllipsis = true, ForeColor = Color.DimGray };
+                string note = (en ? v.NoteEn : v.NoteDe) + "\n" + L.T("Auf diesem PC installiert.");
+                srcTip.SetToolTip(row.Name, note); srcTip.SetToolTip(row.Status, note);
+                srcRowList.Add(row);
+                gSrc.Controls.AddRange(new Control[] { row.Name, row.Status });
             }
             srcShown = new HashSet<string>(srcs.Select(x => x.Key));
 
@@ -2709,11 +2757,113 @@ namespace AkkuAnzeige
             else if (manual) parts.Add(newOnes.Count > 0 ? L.F("Neu gefunden: {0}", string.Join(", ", newOnes)) : L.T("Nichts Neues gefunden."));
             else parts.Add(L.T("Nur was auf diesem PC gefunden wurde – Maus über einen Eintrag für Details."));
             if (newSoft) parts.Add(L.T("Neue Software zum Verknüpfen anhaken und \"Übernehmen\"."));
-            var incompatible = scan.Vendors.Where(v => v.Support != VendorSupport.Supported).Select(v => v.Name).ToList();
-            if (incompatible.Count > 0) parts.Add(L.F("Installiert, aber (noch) nicht unterstützt: {0}", string.Join(", ", incompatible)));
             lblSrcHint.Text = string.Join(" · ", parts);
             srcTip.SetToolTip(lblSrcHint, string.Join("\n", parts));
-            if (IsHandleCreated) ApplyTheme(); // neue Haekchen im aktuellen Design
+            RefreshSourceStatus(); // fuellt Status + Geraetelisten und ordnet die Zeilen an
+            if (IsHandleCreated) ApplyTheme(); // neue Elemente im aktuellen Design
+        }
+
+        // Zeilen untereinander anordnen (aufgeklappte Geraetelisten schieben den Rest nach unten)
+        void LayoutSourceRows()
+        {
+            const int lineH = 15;
+            int y = 22;
+            foreach (var r in srcRowList)
+            {
+                if (r.Check != null) r.Check.Bounds = new Rectangle(12, y, 228, 24);
+                if (r.Name != null) r.Name.Bounds = new Rectangle(30, y + 4, 210, 18);
+                r.Status.Bounds = new Rectangle(246, y + 4, r.Toggle != null && r.Toggle.Visible ? 250 : 350, 18);
+                r.Status.Cursor = r.Toggle != null && r.Toggle.Visible ? Cursors.Hand : Cursors.Default;
+                if (r.Toggle != null) r.Toggle.Bounds = new Rectangle(500, y + 4, 96, 18);
+                y += 24;
+                if (r.Detail != null)
+                {
+                    bool show = r.Expanded && r.Toggle.Visible && r.Lines > 0;
+                    if (show) { r.Detail.Bounds = new Rectangle(36, y, 560, r.Lines * lineH + 2); y += r.Lines * lineH + 6; }
+                    r.Detail.Visible = show;
+                }
+            }
+            y += 6;
+            lblSrcHint.Bounds = new Rectangle(14, y + 6, 430, 18);
+            btnScan.Bounds = new Rectangle(450, y, 146, 26);
+            gSrc.Height = y + 36;
+            LayoutOptGroups();
+            gSrc.Invalidate();
+        }
+
+        // ein Geraet in der aufgeklappten Liste: Anzeigename · Akkustand · Zustand
+        string DeviceLine(string id)
+        {
+            var info = ctx.Get(id);
+            string name = null;
+            foreach (var m in ctx.Settings.KnownMonitors)
+                if (m.Devices != null) { var e = m.Devices.FirstOrDefault(x => x.Id == id); if (e != null) { name = e.Label; break; } }
+            if (string.IsNullOrWhiteSpace(name)) name = info != null ? info.Name : id;
+            if (info != null && !string.IsNullOrEmpty(info.Name) && !string.Equals(info.Name, name, StringComparison.OrdinalIgnoreCase)) name += " (" + info.Name + ")";
+            int? p = ctx.DisplayPercent(id);
+            string state = info == null ? L.T("nicht gefunden")
+                         : !info.Connected ? (id.StartsWith("logi:") ? L.T("Ruhe/aus") : L.T("getrennt"))
+                         : info.Charging ? L.T("lädt") : L.T("verbunden");
+            return "•  " + name + "   ·   " + (p.HasValue ? p.Value + " %" : "--") + "   ·   " + state;
+        }
+
+
+        // Gruppen unter "Datenquellen" nachruecken (die Liste ist je nach PC unterschiedlich lang)
+        void LayoutOptGroups()
+        {
+            if (gUpd == null || gInfo == null || spacer == null) return;
+            gUpd.Top = gSrc.Bottom + 10;
+            gInfo.Top = gUpd.Bottom + 10;
+            spacer.Top = gInfo.Bottom;
+        }
+
+        // Status jeder Datenquelle aus dem letzten Auslesen (alle 5 s) + Geraetelisten
+        public void RefreshSourceStatus()
+        {
+            if (srcRowList.Count == 0 && gSrc != null) { LayoutSourceRows(); return; }
+            bool d = DarkWanted();
+            Color ok = d ? Color.FromArgb(108, 203, 95) : Color.FromArgb(16, 124, 16);
+            Color warn = d ? Color.FromArgb(252, 185, 0) : Color.FromArgb(157, 93, 0);
+            Color dim = Theme.Dim(d);
+            var status = DeviceReader.Status;
+            foreach (var r in srcRowList)
+            {
+                if (r.Key == null) continue; // nicht kompatibel: fester Text
+                SourceStatus s = null;
+                string txt; Color col;
+                if (!r.Check.Checked) { txt = "–  " + L.T("kompatibel · ausgeschaltet"); col = dim; s = null; }
+                else if (!Links.Enabled(r.Key)) { txt = "–  " + L.T("kompatibel · wird nach \"Übernehmen\" genutzt"); col = dim; s = null; }
+                else if (!status.TryGetValue(r.Key, out s)) { txt = "…  " + L.T("kompatibel · wird geprüft …"); col = dim; }
+                else switch (s.State)
+                {
+                    case SourceState.Devices:
+                        txt = "✔  " + (s.Count == 1 ? L.T("kompatibel · liefert 1 Gerät") : L.F("kompatibel · liefert {0} Geräte", s.Count)); col = ok; break;
+                    case SourceState.NoDevices:
+                        txt = "✔  " + L.T("kompatibel · zurzeit kein Gerät eingeschaltet"); col = dim; break;
+                    case SourceState.Spare:
+                        txt = "✔  " + L.T("kompatibel · Ersatz, wird gerade nicht gebraucht"); col = dim; break;
+                    case SourceState.NotRunning:
+                        txt = "⚠  " + L.T("kompatibel · Programm läuft nicht"); col = warn; break;
+                    case SourceState.NoAnswer:
+                        txt = "⚠  " + L.T("kompatibel · antwortet gerade nicht"); col = warn; break;
+                    default:
+                        txt = "–  " + L.T("kompatibel · ausgeschaltet"); col = dim; break;
+                }
+                r.Status.Text = txt;
+                r.Status.ForeColor = col;
+                // Geraeteliste (nur wenn die Quelle etwas liefert)
+                bool has = s != null && s.State == SourceState.Devices && r.Check.Checked && Links.Enabled(r.Key);
+                r.Toggle.Visible = has;
+                r.Toggle.Text = L.T("Geräte") + (r.Expanded ? "  ▾" : "  ▸");
+                r.Toggle.ForeColor = Theme.Accent(d);
+                r.Lines = has ? s.Ids.Count : 0;
+                if (has && r.Expanded)
+                {
+                    string t = string.Join("\n", s.Ids.Select(DeviceLine));
+                    if (r.Detail.Text != t) r.Detail.Text = t;
+                }
+            }
+            LayoutSourceRows();
         }
 
         void ScanSources()
@@ -2796,7 +2946,7 @@ namespace AkkuAnzeige
             ctx.SetIdlePreview(chkIdle.Checked, (int)numIdle.Value);
         }
 
-        public void UpdateDevices(List<DeviceInfo> list) { foreach (var p in pages) p.UpdateDevices(list); }
+        public void UpdateDevices(List<DeviceInfo> list) { foreach (var p in pages) p.UpdateDevices(list); RefreshSourceStatus(); }
 
         // Geraet wurde direkt in der Taskleiste getauscht (schon gespeichert): Monitor-Reiter angleichen
         public void ExternalDevices(string monitorId, List<DeviceEntry> devices)

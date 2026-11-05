@@ -214,7 +214,20 @@ namespace AkkuAnzeige
             { "Nichts Neues gefunden.", "Nothing new found." },
             { "Nur was auf diesem PC gefunden wurde – Maus über einen Eintrag für Details.", "Only what was found on this PC – hover an entry for details." },
             { "Neue Software zum Verknüpfen anhaken und \"Übernehmen\".", "Check new software to link it and click \"Apply\"." },
-            { "Installiert, aber (noch) nicht unterstützt: {0}", "Installed but not supported (yet): {0}" }
+            { "Installiert, aber (noch) nicht unterstützt: {0}", "Installed but not supported (yet): {0}" },
+            // Status je Datenquelle
+            { "installiert – aber nicht kompatibel", "installed – but not compatible" },
+            { "Gelieferte Geräte anzeigen", "Show delivered devices" },
+            { "Geräte", "Devices" },
+            { "kompatibel · ausgeschaltet", "compatible · turned off" },
+            { "kompatibel · wird nach \"Übernehmen\" genutzt", "compatible · used after \"Apply\"" },
+            { "kompatibel · wird geprüft …", "compatible · checking …" },
+            { "kompatibel · liefert 1 Gerät", "compatible · delivers 1 device" },
+            { "kompatibel · liefert {0} Geräte", "compatible · delivers {0} devices" },
+            { "kompatibel · zurzeit kein Gerät eingeschaltet", "compatible · no device switched on right now" },
+            { "kompatibel · Ersatz, wird gerade nicht gebraucht", "compatible · backup, not needed right now" },
+            { "kompatibel · Programm läuft nicht", "compatible · program is not running" },
+            { "kompatibel · antwortet gerade nicht", "compatible · not responding right now" }
         };
     }
 }

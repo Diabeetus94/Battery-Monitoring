@@ -1,5 +1,10 @@
 # Changelog – Akku-Anzeige
 
+## 1.3.2.1 Alpha – 05.11.2026
+- Datenquellen zeigen jetzt den Status jeder Quelle: „kompatibel · liefert 2 Geräte“, „kompatibel · Programm läuft nicht“, „kompatibel · antwortet gerade nicht“ usw. – wird laufend aktualisiert
+- Installierte, aber nicht unterstützte Hersteller-Software steht mit in der Liste: „installiert – aber nicht kompatibel“
+- Klick auf „Geräte ▸“ klappt die Liste der Geräte auf, die eine Quelle liefert – mit Akkustand und Zustand
+
 ## 1.3.2 Alpha – 05.11.2026
 - Datenquellen zeigen nur noch, was auf diesem PC wirklich gefunden wurde: eingebaute Lesewege (HyperX, DualSense, AirPods, Logitech-Empfänger) erscheinen erst, wenn passende Hardware angeschlossen ist
 - „Treiber & Geräte suchen“ meldet neu Gefundenes und installierte, aber (noch) nicht unterstützte Hersteller-Software

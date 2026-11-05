@@ -2,11 +2,11 @@
 
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
-> ⚠️ **Alpha version 1.3.2** – the program is still being tested. Please report bugs as an *Issue*.
+> ⚠️ **Alpha version 1.3.2.1** – the program is still being tested. Please report bugs as an *Issue*.
 >
 > ℹ️ **Not every device and manufacturer can be tested.** Testing is done with the devices we have ourselves (mainly Logitech via G HUB / receiver and Bluetooth headphones). Other manufacturers and models are partly untested – see [Supported data sources](#supported-data-sources). If your device is missing or shown incorrectly, please report it as an *Issue*.
 
-### ⬇️ [Download: AkkuAnzeige-Setup-1.3.2-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
+### ⬇️ [Download: AkkuAnzeige-Setup-1.3.2.1-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
 *(Releases → latest version → Assets)*
 
 **Akku-Anzeige** ("Battery Display") shows the battery levels of your wireless devices – mouse, keyboard, headphones, speakers, controllers … – as small tiles **right on the Windows taskbar**. No more opening vendor apps or digging through the notification area: you always see at a glance how full your batteries are, and you get warned before one runs empty.
@@ -48,7 +48,9 @@
 | 🎮 **Games** | The bar hides automatically during fullscreen games. |
 | ↕️ **Auto-hide taskbar** | With *Automatically hide the taskbar* the tiles slide up and down together with the taskbar – event-driven, no polling, no CPU load while idle. |
 | 📌 **Always visible** | Stays visible above the Start menu, the notification area menu and Quick Settings. |
-| 🔌 **Driver detection** | Detects installed, compatible driver software (e.g. Logitech G HUB) and asks whether to link it. |
+| 🔄 **Swap devices on the taskbar** | Click a tile and pick another device right there – saved instantly, no need to open the program (can be turned off). |
+| 🔌 **Data sources with status** | Shows only what was found on this PC – with a live status for each source (e.g. *compatible · delivers 2 devices*) and an expandable list of the delivered devices. |
+| 🆕 **Update notifications** | Windows notification when a new version is available; optional automatic updates (download, verify, install). |
 
 ---
 
@@ -72,8 +74,10 @@ The bar sits on the left side of the taskbar. Each tile shows **icon, device nam
 | 🔵 Blue | device is charging |
 | ⚪ Gray | device disconnected / in standby – last battery level stays visible |
 
-- **Left-click** a tile: refresh immediately
-- **Right-click**: menu with *Settings*, *About*, *Refresh now*, *Exit*
+- **Left-click** a tile: a small window opens right above it with all devices – one click puts the chosen device into this tile and saves it immediately. If the device is already shown on another tile, the two tiles swap places (*↔ tile 2*). Can be turned off under *Settings → Taskbar*; then a left-click just refreshes the battery levels.
+- **Right-click**: menu with *Settings*, *About*, *Refresh now*, *Exit* – in the same light / dark design as the program
+
+![Swap device](docs/screenshots/en/switcher.png)
 
 ---
 
@@ -125,6 +129,8 @@ Switched-off monitor – can be set up in advance:
   - *Start with Windows*
   - *Start minimized* – tiles only, without the window
   - *When closing the window (X)*: minimize (keeps running) or exit the program completely
+- **Taskbar**
+  - *Swap devices right on the taskbar (click a tile)* – see [The tiles on the taskbar](#the-tiles-on-the-taskbar)
 - **Appearance**
   - *Match window design to Windows automatically* (light / dark) or choose a fixed one
   - *Language*: English / Deutsch
@@ -132,7 +138,15 @@ Switched-off monitor – can be set up in advance:
   - *Alarm volume* (applies to every output device)
   - *Sound*: default warning tone, any Windows sound, or your own file via *Browse …*
   - *Test sound*
-- **Data sources** – which installed, compatible driver software is linked. *Scan drivers & devices* finds driver software and devices added later (Logitech receiver, HyperX dongle, DualSense, paired AirPods/Beats): new ones appear marked *(new)*, found ones with ✓ – check them and click *Apply* to link them, no reinstall needed
+Further down on the same page:
+
+![Settings – data sources, updates, about](docs/screenshots/en/tab6.png)
+
+- **Data sources (found on this PC)** – only what actually exists on this PC: built-in readers appear only when matching hardware is connected, vendor software only when it is installed. Each source shows a live status (see [status messages](#status-messages-of-the-data-sources)). Click **Devices ▸** to see which devices a source delivers – with battery level and state. *Scan drivers & devices* finds software and devices added later: new ones appear marked *(new)* – check them and click *Apply*, no reinstall needed.
+- **Updates**
+  - *Windows notification when an update is available* – about one minute after start and then every 6 hours; clicking the notification opens the update window
+  - *Download and install updates automatically* (off by default) – Windows asks for permission once; nothing is installed during a fullscreen game
+- **About** – version, publisher, *Check for updates*, *Open website*, *Changelog*, *Report a bug* (see [About & update check](#about--update-check))
 
 ---
 
@@ -148,17 +162,17 @@ The warning does **not** use the Windows notification system, so it also appears
 
 ## About & update check
 
-Via **ⓘ About** in the settings window (or right-click → *About*):
+The **About** section is at the bottom of the *Settings* tab (or right-click a tile → *About*):
 
-![About](docs/screenshots/en/info.png)
-
-- Version, publisher, data sources and detected driver software
+- Version and publisher
 - **Check for updates** – finds new versions; **Install update** downloads, verifies (signature + checksum) and installs them right inside the app – no browser needed
 - **Changelog** – shows all changes directly in the app (also available as [CHANGELOG.md](CHANGELOG.md))
-- **Report a bug** – opens GitHub to create an issue or a pull request
-- **Swap devices on the taskbar** – click a tile to pick another device right there (saved instantly, can be turned off)
-- **Update notifications** – Windows notification when a new version is available; optional automatic updates
+- **Report a bug** – a small window with two ways to GitHub: *Create issue* (report a bug, suggest an idea) or *Create pull request* (suggest a code change). Everything is filled in on GitHub (GitHub account needed).
 - **Open website** – opens this page
+
+![Report a bug](docs/screenshots/en/bug.png)
+
+In addition, the app checks for updates on its own and shows a **Windows notification** when a new version is available – or installs it automatically if you turned that on (*Settings → Updates*).
 
 ---
 
@@ -190,9 +204,23 @@ Via **ⓘ About** in the settings window (or right-click → *About*):
 | **HyperX direct** (built in) | ✅ compatible | Cloud III S Wireless (dongle `03F0:06BE` / `02CC`) without NGENUITY: battery level, charging, on / off |
 | **PlayStation DualSense** (built in) | ✅ compatible | USB always; Bluetooth as soon as a program such as Steam has switched the controller to its full report (read passively only) |
 | **AirPods / Beats** (Bluetooth LE, built in) | ✅ compatible | earbud battery from their Bluetooth LE broadcasts (the emptier bud counts); scans only while an Apple audio device is connected |
-| Razer Synapse, Corsair iCUE, SteelSeries GG, HyperX NGENUITY, ASUS Armoury Crate, Logitech Options+ | 🔍 detected | battery levels not supported yet |
+| Razer Synapse, Corsair iCUE, SteelSeries GG, HyperX NGENUITY, ASUS Armoury Crate, Logitech Options+ | 🔍 detected | listed as *installed – but not compatible*; battery levels not supported yet |
 
-All built-in sources only *read*: they never change settings on the device.
+All built-in sources only *read*: they never change settings on the device. Under *Settings → Data sources* only the sources found on this PC are listed.
+
+### Status messages of the data sources
+
+| Message | Meaning |
+|---|---|
+| ✔ **compatible · delivers 2 devices** (green) | works, battery levels are coming in – *Devices ▸* shows which ones |
+| ✔ compatible · no device switched on right now | the connection works, but no device is on at the moment (e.g. mouse switched off, receiver unplugged) |
+| ✔ compatible · backup, not needed right now | fallback source, e.g. *Logitech direct* while G HUB is running |
+| ⚠ **compatible · program is not running** (orange) | e.g. G HUB is installed but not started |
+| ⚠ **compatible · not responding right now** (orange) | the program is running but does not answer (e.g. while it is updating) |
+| – compatible · turned off | you unchecked the source |
+| ✖ **installed – but not compatible** (gray, no checkbox) | e.g. Razer Synapse or Corsair iCUE: detected, but we cannot read battery levels from it yet |
+
+The status is updated every 5 seconds while the window is open.
 
 > ℹ️ **Note on other manufacturers:** We cannot test every device and manufacturer ourselves. Razer, Corsair, SteelSeries, ASUS and other manufacturers usually do not share their devices' battery levels with other programs – support is planned, but can only be built reliably with test devices. Do you own such a device and want to help with testing? Please get in touch via an *Issue*.
 
@@ -203,7 +231,8 @@ All built-in sources only *read*: they never change settings on the device.
 | Action | How |
 |---|---|
 | Open settings | desktop shortcut · double-click the notification area icon · right-click a tile |
-| Refresh immediately | left-click a tile |
+| Swap the device on a tile | left-click the tile → choose a device |
+| Refresh immediately | right-click a tile → *Refresh now* (or left-click, if swapping is turned off) |
 | Switch tabs | click or `Ctrl + Tab` |
 | Exit | right-click a tile or the notification area icon → *Exit* |
 | Uninstall | *Settings → Apps → Akku-Anzeige → Uninstall* |

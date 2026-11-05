@@ -214,25 +214,86 @@ namespace AkkuAnzeige
     }
 
     // ======================= Datenquellen =======================
+    // Zustand einer Datenquelle beim letzten Auslesen
+    public enum SourceState { Devices, NoDevices, NotRunning, NoAnswer, Spare, Off }
+
+    public class SourceStatus
+    {
+        public SourceState State;
+        public int Count;
+        public List<string> Ids = new List<string>();   // gelieferte Geraete (IDs)
+        public static SourceStatus Devices(IEnumerable<DeviceInfo> l)
+        {
+            var ids = l.Select(d => d.Id).Distinct().ToList();
+            return new SourceStatus { State = ids.Count > 0 ? SourceState.Devices : SourceState.NoDevices, Count = ids.Count, Ids = ids };
+        }
+        public static SourceStatus NotRunning() { return new SourceStatus { State = SourceState.NotRunning }; }
+        public static SourceStatus NoAnswer() { return new SourceStatus { State = SourceState.NoAnswer }; }
+        public static SourceStatus Spare() { return new SourceStatus { State = SourceState.Spare }; }   // Ersatzquelle, wird gerade nicht gebraucht
+        public static SourceStatus Off() { return new SourceStatus { State = SourceState.Off }; }
+    }
+
     static class DeviceReader
     {
         const string LgsUrl = "http://localhost:12321";
 
+        // Zustand jeder Datenquelle beim letzten Auslesen (fuer die Anzeige unter "Datenquellen")
+        public static Dictionary<string, SourceStatus> Status = new Dictionary<string, SourceStatus>();
+
+        static bool ProcessRunning(string regex)
+        {
+            try { return System.Diagnostics.Process.GetProcesses().Any(p => Regex.IsMatch(p.ProcessName, regex, RegexOptions.IgnoreCase)); }
+            catch { return true; } // im Zweifel nicht "laeuft nicht" melden
+        }
+
         public static List<DeviceInfo> ReadAll()
         {
             var list = new List<DeviceInfo>();
+            var st = new Dictionary<string, SourceStatus>();
+            Func<List<DeviceInfo>, SourceStatus> got = l => l == null ? SourceStatus.NoAnswer() : SourceStatus.Devices(l);
             // Logitech: direkt aus G HUB (Akku + Aktiv-Status); LGSTray nur, wenn G HUB nicht erreichbar ist
             // nur verknuepfte Quellen (Einstellungen -> Datenquellen / Setup)
             List<DeviceInfo> logi = null;
-            if (Links.Enabled("ghub")) { try { logi = GHub.Read(); } catch { logi = null; } }
-            if (logi == null && Links.Enabled("lgstray")) { try { logi = ReadLogitech(); } catch { logi = null; } }
+            if (Links.Enabled("ghub"))
+            {
+                try { logi = GHub.Read(); } catch { logi = null; }
+                st["ghub"] = logi != null ? SourceStatus.Devices(logi) : ProcessRunning(@"^lghub") ? SourceStatus.NoAnswer() : SourceStatus.NotRunning();
+            }
+            else st["ghub"] = SourceStatus.Off();
+            if (!Links.Enabled("lgstray")) st["lgstray"] = SourceStatus.Off();
+            else if (logi != null) st["lgstray"] = SourceStatus.Spare();
+            else
+            {
+                try { logi = ReadLogitech(); } catch { logi = null; }
+                st["lgstray"] = logi != null && logi.Count > 0 ? SourceStatus.Devices(logi) : ProcessRunning(@"^LGSTray") ? SourceStatus.NoAnswer() : SourceStatus.NotRunning();
+                if (logi != null && logi.Count == 0) logi = null;
+            }
             // ohne G HUB / LGSTray: Logitech-Empfaenger und -Kabelgeraete direkt ueber HID++ abfragen
-            if ((logi == null || logi.Count == 0) && Links.Enabled(Links.LogiHid)) { try { logi = LogiHidpp.Read(); } catch (Exception ex) { Program.LogError(ex); } }
+            if (!Links.Enabled(Links.LogiHid)) st[Links.LogiHid] = SourceStatus.Off();
+            else if (logi != null && logi.Count > 0) st[Links.LogiHid] = SourceStatus.Spare();
+            else
+            {
+                try { logi = LogiHidpp.Read(); st[Links.LogiHid] = got(logi); }
+                catch (Exception ex) { Program.LogError(ex); st[Links.LogiHid] = SourceStatus.NoAnswer(); }
+            }
             if (logi != null) list.AddRange(logi);
-            if (Links.Enabled(Links.Bluetooth)) { try { list.AddRange(ReadBluetooth()); } catch (Exception ex) { Program.LogError(ex); } }
-            else { try { AppleBle.Watch(false); } catch { } }
-            if (Links.Enabled(Links.HyperX)) { try { list.AddRange(HyperX.Read()); } catch (Exception ex) { Program.LogError(ex); } }
-            if (Links.Enabled(Links.DualSense)) { try { list.AddRange(DualSense.Read()); } catch (Exception ex) { Program.LogError(ex); } }
+            if (Links.Enabled(Links.Bluetooth))
+            {
+                try
+                {
+                    var bt = ReadBluetooth();
+                    list.AddRange(bt);
+                    st[Links.Bluetooth] = SourceStatus.Devices(bt.Where(d => d.Source != "Bluetooth (Apple)"));
+                    st[Links.AirPods] = Links.Enabled(Links.AirPods) ? SourceStatus.Devices(bt.Where(d => d.Source == "Bluetooth (Apple)")) : SourceStatus.Off();
+                }
+                catch (Exception ex) { Program.LogError(ex); st[Links.Bluetooth] = SourceStatus.NoAnswer(); }
+            }
+            else { try { AppleBle.Watch(false); } catch { } st[Links.Bluetooth] = SourceStatus.Off(); st[Links.AirPods] = SourceStatus.Off(); }
+            if (Links.Enabled(Links.HyperX)) { try { var h = HyperX.Read(); list.AddRange(h); st[Links.HyperX] = got(h); } catch (Exception ex) { Program.LogError(ex); st[Links.HyperX] = SourceStatus.NoAnswer(); } }
+            else st[Links.HyperX] = SourceStatus.Off();
+            if (Links.Enabled(Links.DualSense)) { try { var d = DualSense.Read(); list.AddRange(d); st[Links.DualSense] = got(d); } catch (Exception ex) { Program.LogError(ex); st[Links.DualSense] = SourceStatus.NoAnswer(); } }
+            else st[Links.DualSense] = SourceStatus.Off();
+            Status = st;
             return list;
         }
 

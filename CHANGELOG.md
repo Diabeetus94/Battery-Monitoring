@@ -1,5 +1,10 @@
 # Changelog – Akku-Anzeige (Battery Display)
 
+## 1.3.2.1 Alpha – 2026-11-05
+- Data sources now show the status of each source: "compatible · delivers 2 devices", "compatible · program is not running", "compatible · not responding right now" etc. – updated continuously
+- Installed but unsupported vendor software is listed too: "installed – but not compatible"
+- Clicking "Devices ▸" expands the list of devices a source delivers – with battery level and state
+
 ## 1.3.2 Alpha – 2026-11-05
 - Data sources only show what was actually found on this PC: built-in readers (HyperX, DualSense, AirPods, Logitech receiver) only appear when matching hardware is connected
 - "Scan drivers & devices" reports newly found sources and installed but not (yet) supported vendor software

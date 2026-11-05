@@ -2,11 +2,11 @@
 
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
-> ⚠️ **Alpha-Version 1.3.2** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
+> ⚠️ **Alpha-Version 1.3.2.1** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
 >
 > ℹ️ **Nicht alle Geräte und Hersteller können getestet werden.** Getestet wird mit den Geräten, die uns selbst zur Verfügung stehen (vor allem Logitech über G HUB / Empfänger und Bluetooth-Kopfhörer). Andere Hersteller und Modelle sind teils ungetestet – siehe [Unterstützte Datenquellen](#unterstützte-datenquellen). Wenn dein Gerät nicht oder falsch angezeigt wird, melde es gern als *Issue*.
 
-### ⬇️ [Download: AkkuAnzeige-Setup-1.3.2-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
+### ⬇️ [Download: AkkuAnzeige-Setup-1.3.2.1-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
 *(Releases → neueste Version → Assets)*
 
 **Akku-Anzeige** zeigt die Akkustände deiner drahtlosen Geräte – Maus, Tastatur, Kopfhörer, Lautsprecher, Controller … – als kleine Kacheln **direkt auf der Windows-Taskleiste**. Kein Öffnen von Hersteller-Apps mehr, kein Suchen im Infobereich: Du siehst jederzeit auf einen Blick, wie voll deine Akkus sind, und wirst rechtzeitig gewarnt, bevor einer leer ist.
@@ -48,7 +48,9 @@
 | 🎮 **Spiele** | Bei Vollbild-Spielen blendet sich die Leiste automatisch aus. |
 | ↕️ **Automatisch ausblendende Taskleiste** | Bei *Taskleiste automatisch ausblenden* fahren die Kacheln mit der Taskleiste hoch und runter – ereignisgesteuert, ohne Abfrage-Timer, im Ruhezustand ohne CPU-Last. |
 | 📌 **Immer sichtbar** | Bleibt auch über Startmenü, Infobereich-Menü und Schnelleinstellungen sichtbar. |
-| 🔌 **Treiber-Erkennung** | Erkennt installierte, kompatible Treiber-Software (z. B. Logitech G HUB) und fragt, ob sie verknüpft werden soll. |
+| 🔄 **Geräte in der Taskleiste tauschen** | Auf eine Kachel klicken und direkt dort ein anderes Gerät wählen – sofort gespeichert, ohne das Programm zu öffnen (abschaltbar). |
+| 🔌 **Datenquellen mit Status** | Zeigt nur, was auf diesem PC gefunden wurde – mit Live-Status je Quelle (z. B. *kompatibel · liefert 2 Geräte*) und aufklappbarer Liste der gelieferten Geräte. |
+| 🆕 **Update-Mitteilungen** | Windows-Mitteilung, wenn eine neue Version verfügbar ist; auf Wunsch automatische Updates (laden, prüfen, installieren). |
 
 ---
 
@@ -72,8 +74,10 @@ Die Leiste sitzt links auf der Taskleiste. Jede Kachel zeigt **Symbol, Gerätena
 | 🔵 Blau | Gerät lädt |
 | ⚪ Grau | Gerät getrennt / im Standby – letzter Akkustand bleibt stehen |
 
-- **Linksklick** auf eine Kachel: sofort aktualisieren
-- **Rechtsklick**: Menü mit *Einstellungen*, *Info*, *Jetzt aktualisieren*, *Beenden*
+- **Linksklick** auf eine Kachel: Direkt darüber öffnet sich ein kleines Fenster mit allen Geräten – ein Klick setzt das gewählte Gerät in diese Kachel und speichert es sofort. Wird das Gerät schon in einer anderen Kachel angezeigt, tauschen die beiden Kacheln die Plätze (*↔ Kachel 2*). Abschaltbar unter *Einstellungen → Taskleiste*; dann aktualisiert ein Linksklick nur die Akkustände.
+- **Rechtsklick**: Menü mit *Einstellungen*, *Info*, *Jetzt aktualisieren*, *Beenden* – im selben hellen / dunklen Design wie das Programm
+
+![Gerät tauschen](docs/screenshots/de/switcher.png)
 
 ---
 
@@ -125,6 +129,8 @@ Ausgeschalteter Monitor – kann schon vorab eingerichtet werden:
   - *Mit Windows starten*
   - *Minimiert starten* – nur die Kacheln, ohne Fenster
   - *Beim Schließen des Fensters (X)*: minimieren (läuft weiter) oder Programm komplett beenden
+- **Taskleiste**
+  - *Geräte direkt in der Taskleiste tauschen (Klick auf eine Kachel)* – siehe [Die Kacheln auf der Taskleiste](#die-kacheln-auf-der-taskleiste)
 - **Darstellung**
   - *Fensterdesign automatisch an Windows anpassen* (hell / dunkel) oder fest wählen
   - *Sprache*: Deutsch / English
@@ -132,7 +138,15 @@ Ausgeschalteter Monitor – kann schon vorab eingerichtet werden:
   - *Lautstärke* des Alarms (gilt für jedes Ausgabegerät)
   - *Sound*: Standard-Warnton, alle Windows-Sounds oder eigene Datei über *Durchsuchen …*
   - *Ton testen*
-- **Datenquellen** – welche installierte, kompatible Treiber-Software verknüpft ist. *Treiber & Geräte suchen* findet nachträglich installierte Treiber-Software und Geräte (Logitech-Empfänger, HyperX-Dongle, DualSense, gekoppelte AirPods/Beats): neue erscheinen mit *(neu)*, gefundene mit ✓ – anhaken und *Übernehmen*, schon sind sie verknüpft, ohne Neuinstallation
+Weiter unten auf derselben Seite:
+
+![Einstellungen – Datenquellen, Updates, Info](docs/screenshots/de/tab6.png)
+
+- **Datenquellen (auf diesem PC gefunden)** – nur, was es auf diesem PC wirklich gibt: eingebaute Lesewege erscheinen nur, wenn passende Hardware angeschlossen ist, Hersteller-Software nur, wenn sie installiert ist. Jede Quelle zeigt einen Live-Status (siehe [Statusmeldungen](#statusmeldungen-der-datenquellen)). Ein Klick auf **Geräte ▸** zeigt, welche Geräte eine Quelle liefert – mit Akkustand und Zustand. *Treiber & Geräte suchen* findet nachträglich installierte Software und Geräte: neue erscheinen mit *(neu)* – anhaken und *Übernehmen*, ohne Neuinstallation.
+- **Updates**
+  - *Windows-Mitteilung, wenn ein Update verfügbar ist* – etwa eine Minute nach dem Start und danach alle 6 Stunden; ein Klick auf die Mitteilung öffnet das Update-Fenster
+  - *Updates automatisch herunterladen und installieren* (standardmäßig aus) – Windows fragt einmal nach der Berechtigung; während eines Vollbild-Spiels wird nicht installiert
+- **Info** – Version, Hersteller, *Nach Updates suchen*, *Website öffnen*, *Changelog*, *Bug melden* (siehe [Info & Update-Suche](#info--update-suche))
 
 ---
 
@@ -148,17 +162,17 @@ Die Warnung läuft **nicht** über das Windows-Benachrichtigungssystem und kommt
 
 ## Info & Update-Suche
 
-Über **ⓘ Info** im Einstellungsfenster (oder Rechtsklick → *Info*):
+Der Bereich **Info** steht ganz unten im Reiter *Einstellungen* (oder Rechtsklick auf eine Kachel → *Info*):
 
-![Info](docs/screenshots/de/info.png)
-
-- Version, Hersteller, Datenquellen und erkannte Treiber-Software
+- Version und Hersteller
 - **Nach Updates suchen** – findet neue Versionen; **Update installieren** lädt sie direkt in der App herunter, prüft sie (Signatur + Prüfsumme) und installiert sie – ohne Browser
 - **Changelog** – zeigt alle Änderungen direkt in der App (auch als [CHANGELOG.de.md](CHANGELOG.de.md))
-- **Bug melden** – öffnet GitHub, um ein Issue oder einen Pull Request zu erstellen
-- **Geräte in der Taskleiste tauschen** – Klick auf eine Kachel, anderes Gerät direkt dort wählen (sofort gespeichert, abschaltbar)
-- **Update-Mitteilungen** – Windows-Mitteilung bei einer neuen Version; auf Wunsch automatische Updates
+- **Bug melden** – kleines Fenster mit zwei Wegen zu GitHub: *Issue erstellen* (Fehler melden, Idee vorschlagen) oder *Pull Request erstellen* (Code-Änderung vorschlagen). Ausgefüllt wird alles auf GitHub (GitHub-Konto nötig).
 - **Website öffnen** – öffnet diese Seite
+
+![Bug melden](docs/screenshots/de/bug.png)
+
+Außerdem sucht die App selbst nach Updates und zeigt eine **Windows-Mitteilung**, wenn eine neue Version da ist – oder installiert sie automatisch, wenn du das eingeschaltet hast (*Einstellungen → Updates*).
 
 ---
 
@@ -190,9 +204,23 @@ Die Warnung läuft **nicht** über das Windows-Benachrichtigungssystem und kommt
 | **HyperX direkt** (eingebaut) | ✅ kompatibel | Cloud III S Wireless (Dongle `03F0:06BE` / `02CC`) ohne NGENUITY: Akkustand, Laden, An / Aus |
 | **PlayStation DualSense** (eingebaut) | ✅ kompatibel | USB immer; Bluetooth, sobald ein Programm wie Steam den Controller auf den vollen Bericht umgeschaltet hat (nur passives Mitlesen) |
 | **AirPods / Beats** (Bluetooth LE, eingebaut) | ✅ kompatibel | Akkustand der Ohrhörer aus ihren Bluetooth-LE-Signalen (der leerere zählt); sucht nur, solange ein Apple-Audiogerät verbunden ist |
-| Razer Synapse, Corsair iCUE, SteelSeries GG, HyperX NGENUITY, ASUS Armoury Crate, Logitech Options+ | 🔍 wird erkannt | Akkustände noch nicht unterstützt |
+| Razer Synapse, Corsair iCUE, SteelSeries GG, HyperX NGENUITY, ASUS Armoury Crate, Logitech Options+ | 🔍 wird erkannt | erscheint als *installiert – aber nicht kompatibel*; Akkustände noch nicht unterstützt |
 
-Alle eingebauten Quellen *lesen* nur – sie ändern keine Einstellungen am Gerät.
+Alle eingebauten Quellen *lesen* nur – sie ändern keine Einstellungen am Gerät. Unter *Einstellungen → Datenquellen* stehen nur die Quellen, die auf diesem PC gefunden wurden.
+
+### Statusmeldungen der Datenquellen
+
+| Meldung | Bedeutung |
+|---|---|
+| ✔ **kompatibel · liefert 2 Geräte** (grün) | funktioniert, Akkustände kommen an – *Geräte ▸* zeigt, welche |
+| ✔ kompatibel · zurzeit kein Gerät eingeschaltet | Verbindung klappt, aber gerade ist kein Gerät an (z. B. Maus aus, Empfänger abgezogen) |
+| ✔ kompatibel · Ersatz, wird gerade nicht gebraucht | Ersatzquelle, z. B. *Logitech direkt*, solange G HUB läuft |
+| ⚠ **kompatibel · Programm läuft nicht** (orange) | z. B. G HUB ist installiert, aber nicht gestartet |
+| ⚠ **kompatibel · antwortet gerade nicht** (orange) | das Programm läuft, gibt aber keine Antwort (z. B. während es sich aktualisiert) |
+| – kompatibel · ausgeschaltet | du hast den Haken herausgenommen |
+| ✖ **installiert – aber nicht kompatibel** (grau, ohne Haken) | z. B. Razer Synapse oder Corsair iCUE: erkannt, aber Akkustände können wir daraus noch nicht lesen |
+
+Der Status wird alle 5 Sekunden aktualisiert, solange das Fenster offen ist.
 
 > ℹ️ **Hinweis zu anderen Herstellern:** Wir können nicht jedes Gerät und jeden Hersteller selbst testen. Razer, Corsair, SteelSeries, ASUS und weitere Hersteller geben die Akkustände ihrer Geräte meist nicht für andere Programme frei – Unterstützung dafür ist geplant, kann aber nur mit Testgeräten zuverlässig umgesetzt werden. Hast du ein solches Gerät und möchtest beim Testen helfen? Melde dich gern über ein *Issue*.
 
@@ -203,7 +231,8 @@ Alle eingebauten Quellen *lesen* nur – sie ändern keine Einstellungen am Ger�
 | Aktion | Wie |
 |---|---|
 | Einstellungen öffnen | Desktop-Verknüpfung · Doppelklick auf Infobereich-Symbol · Rechtsklick auf Kachel |
-| Sofort aktualisieren | Linksklick auf eine Kachel |
+| Gerät einer Kachel tauschen | Linksklick auf die Kachel → Gerät wählen |
+| Sofort aktualisieren | Rechtsklick auf eine Kachel → *Jetzt aktualisieren* (oder Linksklick, wenn das Tauschen ausgeschaltet ist) |
 | Reiter wechseln | Klick oder `Strg + Tab` |
 | Programm beenden | Rechtsklick auf Kachel oder Infobereich-Symbol → *Beenden* |
 | Deinstallieren | *Einstellungen → Apps → Akku-Anzeige → Deinstallieren* |
