@@ -1,5 +1,10 @@
 # Changelog – Akku-Anzeige
 
+## 1.3.2 Alpha – 05.11.2026
+- Datenquellen zeigen nur noch, was auf diesem PC wirklich gefunden wurde: eingebaute Lesewege (HyperX, DualSense, AirPods, Logitech-Empfänger) erscheinen erst, wenn passende Hardware angeschlossen ist
+- „Treiber & Geräte suchen“ meldet neu Gefundenes und installierte, aber (noch) nicht unterstützte Hersteller-Software
+- Setup: eingebaute Lesewege werden nicht mehr als „Treiber-Software“ angezeigt
+
 ## 1.3.1 Alpha – 05.11.2026
 - Neu: Geräte direkt in der Taskleiste tauschen – Klick auf eine Kachel öffnet darüber ein Fenster mit allen Geräten; die Auswahl wird sofort gespeichert (Einstellungen → Taskleiste, abschaltbar)
 - Neu: Windows-Mitteilung, wenn ein Update verfügbar ist (Einstellungen → Updates, abschaltbar)

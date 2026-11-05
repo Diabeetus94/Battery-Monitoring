@@ -203,7 +203,18 @@ namespace AkkuAnzeige
             { "Akku-Anzeige {0} wird heruntergeladen und installiert.", "Battery Display {0} is being downloaded and installed." },
             { "Update fehlgeschlagen", "Update failed" },
             { "Update nicht installiert", "Update not installed" },
-            { "Hier klicken, um es von Hand zu installieren.", "Click here to install it manually." }
+            { "Hier klicken, um es von Hand zu installieren.", "Click here to install it manually." },
+            // Datenquellen: nur Gefundenes
+            { "Datenquellen (auf diesem PC gefunden)", "Data sources (found on this PC)" },
+            { "Eingebaut – liest das Gerät direkt, ohne Zusatzprogramm.", "Built in – reads the device directly, no extra software." },
+            { "Läuft auf diesem PC.", "Running on this PC." },
+            { "Auf diesem PC installiert.", "Installed on this PC." },
+            { "Auf diesem PC wurde keine kompatible Quelle gefunden.", "No compatible source was found on this PC." },
+            { "Neu gefunden: {0}", "Newly found: {0}" },
+            { "Nichts Neues gefunden.", "Nothing new found." },
+            { "Nur was auf diesem PC gefunden wurde – Maus über einen Eintrag für Details.", "Only what was found on this PC – hover an entry for details." },
+            { "Neue Software zum Verknüpfen anhaken und \"Übernehmen\".", "Check new software to link it and click \"Apply\"." },
+            { "Installiert, aber (noch) nicht unterstützt: {0}", "Installed but not supported (yet): {0}" }
         };
     }
 }

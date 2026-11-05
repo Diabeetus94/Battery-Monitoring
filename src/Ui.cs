@@ -2478,13 +2478,13 @@ namespace AkkuAnzeige
 
             // Datenquellen: welche (kompatiblen, installierten) Programme mit der Akku-Anzeige verknuepft sind.
             // "Treiber & Geräte suchen" erkennt nachtraeglich installierte Software und angeschlossene Hardware.
-            gSrc = new ThemedGroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 540, 608, 118) };
+            gSrc = new ThemedGroupBox { Text = L.T("Datenquellen (auf diesem PC gefunden)"), Bounds = new Rectangle(8, 540, 608, 118) };
             lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 96, 430, 18), ForeColor = Color.DimGray, AutoEllipsis = true };
             btnScan = new Button { Text = L.T("Treiber && Geräte suchen"), Bounds = new Rectangle(450, 90, 146, 26) };
             btnScan.Click += delegate { ScanSources(); };
             gSrc.Controls.Add(lblSrcHint);
             gSrc.Controls.Add(btnScan);
-            BuildSources(null);
+            BuildSources(QuickScan(), false);
 
             // Updates: Windows-Mitteilung + automatische Installation
             var gUpd = new ThemedGroupBox { Text = L.T("Updates"), Bounds = new Rectangle(8, 668, 608, 118) };
@@ -2651,44 +2651,69 @@ namespace AkkuAnzeige
         readonly ToolTip srcTip = new ToolTip { AutoPopDelay = 20000 };
         readonly Dictionary<string, bool> srcState = new Dictionary<string, bool>(); // Haken, die schon im Fenster standen
 
-        // Liste der Datenquellen aufbauen; scan != null: Ergebnis von "Treiber & Geräte suchen"
-        void BuildSources(SourceScan scan)
+        HashSet<string> srcShown; // beim letzten Aufbau angezeigte Quellen (fuer "neu" nach der Suche)
+
+        // Schnelle Suche (ca. 50 ms) beim Oeffnen; Fehler -> nur Software-Erkennung
+        SourceScan QuickScan()
+        {
+            try { return SourceScan.Run(); }
+            catch (Exception ex) { Program.LogError(ex); return new SourceScan { Vendors = Vendors.Detect(true) }; }
+        }
+
+        // eingebauter Leseweg ist "vorhanden", wenn passende Hardware am PC haengt oder er gerade ein Geraet liefert
+        bool BuiltInPresent(SourceScan scan, string key)
+        {
+            bool p;
+            if (scan.Present.TryGetValue(key, out p) && p) return true;
+            var av = ctx.Available ?? new List<DeviceInfo>();
+            if (key == Links.HyperX) return av.Any(d => d.Id.StartsWith("hyperx:"));
+            if (key == Links.DualSense) return av.Any(d => d.Id.StartsWith("ds:"));
+            if (key == Links.AirPods) return av.Any(d => d.Source == "Bluetooth (Apple)");
+            if (key == Links.LogiHid) return av.Any(d => d.Source == "Logitech (HID++)");
+            return false;
+        }
+
+        // Liste der Datenquellen: NUR was auf diesem PC gefunden wurde
+        //  - eingebaute Lesewege (ohne Zusatzprogramm), wenn passende Hardware angeschlossen ist
+        //  - installierte, kompatible Hersteller-Software
+        // manual = Ergebnis von "Treiber & Geräte suchen" (neu Aufgetauchtes wird markiert)
+        void BuildSources(SourceScan scan, bool manual)
         {
             foreach (var cb in srcChecks) { srcState[(string)cb.Tag] = cb.Checked; gSrc.Controls.Remove(cb); cb.Dispose(); }
             srcChecks.Clear();
             bool en = L.Current == "en";
-            var srcs = Links.BuiltIns.Select(b => new { Key = b.Key, Name = en ? b.NameEn : b.NameDe, Note = en ? b.NoteEn : b.NoteDe }).ToList();
-            var vendors = scan != null ? scan.Vendors : Vendors.Detect(true);
-            foreach (var v in vendors.Where(x => x.Support == VendorSupport.Supported))
-                srcs.Add(new { Key = v.Key, Name = v.Name, Note = en ? v.NoteEn : v.NoteDe });
+            var srcs = Links.BuiltIns.Where(b => BuiltInPresent(scan, b.Key))
+                .Select(b => new { Key = b.Key, Name = en ? b.NameEn : b.NameDe, Note = (en ? b.NoteEn : b.NoteDe) + "\n" + L.T("Eingebaut – liest das Gerät direkt, ohne Zusatzprogramm."), BuiltIn = true }).ToList();
+            foreach (var v in scan.Vendors.Where(x => x.Support == VendorSupport.Supported))
+                srcs.Add(new { Key = v.Key, Name = v.Name, Note = (en ? v.NoteEn : v.NoteDe) + "\n" + (v.Portable ? L.T("Läuft auf diesem PC.") : L.T("Auf diesem PC installiert.")), BuiltIn = false });
             int sx = 12, sy = 22;
             var newOnes = new List<string>();
+            bool newSoft = false;
             foreach (var src in srcs)
             {
                 bool known = srcState.ContainsKey(src.Key);
-                bool isNew = scan != null && !known;  // erst durch den Scan aufgetaucht -> nur anbieten, nicht anhaken
-                bool found = false;
-                if (scan != null) scan.Present.TryGetValue(src.Key, out found);
-                string text = src.Name + (isNew ? " (" + L.T("neu") + ")" : "") + (found ? " ✓" : "");
-                var cb = new CheckBox { Text = text, Tag = src.Key, Bounds = new Rectangle(sx, sy, 190, 24), AutoEllipsis = true,
-                                        Checked = known ? srcState[src.Key] : (isNew ? false : Links.Enabled(src.Key)) };
-                srcTip.SetToolTip(cb, src.Note + (scan == null ? "" : "\n" + (found ? L.T("Auf diesem PC gefunden.") : L.T("Auf diesem PC nicht gefunden."))));
-                if (isNew) newOnes.Add(src.Name);
+                bool isNew = manual && srcShown != null && !srcShown.Contains(src.Key);
+                // neu gefundene Software nur anbieten (nicht anhaken); neu angeschlossene Hardware gleich nutzen
+                bool on = known ? srcState[src.Key] : (isNew && !src.BuiltIn ? false : Links.Enabled(src.Key));
+                var cb = new CheckBox { Text = src.Name + (isNew ? " (" + L.T("neu") + ")" : ""), Tag = src.Key, Bounds = new Rectangle(sx, sy, 190, 24), AutoEllipsis = true, Checked = on };
+                srcTip.SetToolTip(cb, src.Note);
+                if (isNew) { newOnes.Add(src.Name); newSoft |= !src.BuiltIn; }
                 srcChecks.Add(cb);
                 gSrc.Controls.Add(cb);
                 if (sx < 404) sx += 196; else { sx = 12; sy += 24; }
             }
-            if (scan == null) return;
-            // Ergebnis zusammenfassen
-            var foundNames = srcs.Where(x => x.Key != Links.Bluetooth && scan.Present.ContainsKey(x.Key) && scan.Present[x.Key]).Select(x => x.Name).ToList();
+            srcShown = new HashSet<string>(srcs.Select(x => x.Key));
+
             var parts = new List<string>();
-            parts.Add(foundNames.Count > 0 ? L.F("Gefunden: {0}", string.Join(", ", foundNames)) : L.T("Keine weiteren kompatiblen Geräte oder Programme gefunden."));
-            if (newOnes.Count > 0) parts.Add(L.T("Neue zum Verknüpfen anhaken und \"Übernehmen\"."));
+            if (srcs.Count == 0) parts.Add(L.T("Auf diesem PC wurde keine kompatible Quelle gefunden."));
+            else if (manual) parts.Add(newOnes.Count > 0 ? L.F("Neu gefunden: {0}", string.Join(", ", newOnes)) : L.T("Nichts Neues gefunden."));
+            else parts.Add(L.T("Nur was auf diesem PC gefunden wurde – Maus über einen Eintrag für Details."));
+            if (newSoft) parts.Add(L.T("Neue Software zum Verknüpfen anhaken und \"Übernehmen\"."));
             var incompatible = scan.Vendors.Where(v => v.Support != VendorSupport.Supported).Select(v => v.Name).ToList();
-            if (incompatible.Count > 0) parts.Add(L.F("Erkannt, aber nicht kompatibel: {0}", string.Join(", ", incompatible)));
+            if (incompatible.Count > 0) parts.Add(L.F("Installiert, aber (noch) nicht unterstützt: {0}", string.Join(", ", incompatible)));
             lblSrcHint.Text = string.Join(" · ", parts);
             srcTip.SetToolTip(lblSrcHint, string.Join("\n", parts));
-            ApplyTheme(); // neue Haekchen im aktuellen Design
+            if (IsHandleCreated) ApplyTheme(); // neue Haekchen im aktuellen Design
         }
 
         void ScanSources()
@@ -2705,7 +2730,7 @@ namespace AkkuAnzeige
                     {
                         if (IsDisposed) return;
                         btnScan.Enabled = true;
-                        if (r != null) BuildSources(r); else lblSrcHint.Text = L.T("Suche fehlgeschlagen.");
+                        if (r != null) BuildSources(r, true); else lblSrcHint.Text = L.T("Suche fehlgeschlagen.");
                     }));
                 }
                 catch { }

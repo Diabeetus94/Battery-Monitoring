@@ -150,7 +150,7 @@ namespace AkkuAnzeige
         // Eingebaute Quellen (brauchen keine Hersteller-Software)
         public static readonly BuiltInSource[] BuiltIns =
         {
-            new BuiltInSource(Bluetooth, "Windows-Bluetooth (eingebaut)", "Windows Bluetooth (built in)",
+            new BuiltInSource(Bluetooth, "Windows-Bluetooth", "Windows Bluetooth",
                               "Kopfhörer, Lautsprecher, Handys …", "headphones, speakers, phones …"),
             new BuiltInSource(LogiHid, "Logitech direkt (HID++)", "Logitech direct (HID++)",
                               "LIGHTSPEED-/Unifying-/Bolt-Empfänger ohne G HUB", "LIGHTSPEED / Unifying / Bolt receivers without G HUB"),
