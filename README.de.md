@@ -79,6 +79,8 @@ Die Leiste sitzt links auf der Taskleiste. Jede Kachel zeigt **Symbol, Gerätena
 
 ![Gerät tauschen](docs/screenshots/de/switcher.png)
 
+![Rechtsklick-Menü](docs/screenshots/de/menu.png)
+
 ---
 
 ## Einstellungen

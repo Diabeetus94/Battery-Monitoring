@@ -79,6 +79,8 @@ The bar sits on the left side of the taskbar. Each tile shows **icon, device nam
 
 ![Swap device](docs/screenshots/en/switcher.png)
 
+![Right-click menu](docs/screenshots/en/menu.png)
+
 ---
 
 ## Settings
