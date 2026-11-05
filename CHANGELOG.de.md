@@ -1,5 +1,18 @@
 # Changelog – Akku-Anzeige
 
+## 1.2.0.3 Alpha – 05.11.2026
+Mit Beiträgen von garpu-ng (Pull Requests #1 und #2) – vielen Dank!
+- Neue eingebaute Gerätequellen ohne Hersteller-Software: Logitech direkt über den Empfänger (HID++), HyperX Cloud III S Wireless, PlayStation DualSense, AirPods/Beats (Bluetooth LE)
+- „Treiber & Geräte suchen“ unter Datenquellen: findet nachträglich installierte Software und angeschlossene Geräte
+- Eigene Farben für die Kacheln mit der Windows-Farbauswahl
+- Unterstützung für eine automatisch ausgeblendete Taskleiste – die Kacheln fahren mit
+- Behoben: Beim Tippen im Feld „Anzeigename“ ging nach jedem Buchstaben der Fokus verloren
+- Behoben: Maximierte Fenster wurden bei ausgeblendeter Taskleiste als Vollbild-Spiel erkannt
+- Behoben: Kacheln blinkten beim Klick auf die Taskleiste kurz weg
+- Neue Installationen starten ohne vorgegebene Beispielgeräte und zeigen die eigenen Geräte automatisch
+- Weniger Prozessorlast im Leerlauf
+- Changelog-Fenster: nur noch eine Leerzeile zwischen den Versionen
+
 ## 1.2.0.2 Alpha – 05.11.2026
 - Updates werden jetzt direkt in der App heruntergeladen und installiert – ohne Browser
 - Vor der Installation wird geprüft, dass das Update mit dem Zertifikat der Akku-Anzeige signiert und unverändert ist

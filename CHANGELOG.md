@@ -1,5 +1,18 @@
 # Changelog – Akku-Anzeige (Battery Display)
 
+## 1.2.0.3 Alpha – 2026-11-05
+With contributions from garpu-ng (pull requests #1 and #2) – thank you!
+- New built-in device sources without vendor software: Logitech directly via the receiver (HID++), HyperX Cloud III S Wireless, PlayStation DualSense, AirPods/Beats (Bluetooth LE)
+- "Search drivers & devices" under data sources: finds software installed later and connected devices
+- Custom tile colors with the Windows color picker
+- Support for an auto-hiding taskbar – the tiles move along with it
+- Fixed: typing in the "Display name" field lost focus after every letter
+- Fixed: maximized windows were treated as fullscreen games when the taskbar is auto-hidden
+- Fixed: tiles briefly disappeared when clicking the taskbar
+- New installations start without preset example devices and show your own devices automatically
+- Lower CPU usage while idle
+- Changelog window: only one blank line between versions
+
 ## 1.2.0.2 Alpha – 2026-11-05
 - Updates are now downloaded and installed directly inside the app – no browser needed
 - Before installing, the update is verified to be signed with the Akku-Anzeige certificate and unmodified

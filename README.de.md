@@ -2,9 +2,9 @@
 
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
-> ⚠️ **Alpha-Version 1.2.0.2** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
+> ⚠️ **Alpha-Version 1.2.0.3** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
 
-### ⬇️ [Download: AkkuAnzeige-Setup-1.2.0.2-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
+### ⬇️ [Download: AkkuAnzeige-Setup-1.2.0.3-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
 *(Releases → neueste Version → Assets)*
 
 **Akku-Anzeige** zeigt die Akkustände deiner drahtlosen Geräte – Maus, Tastatur, Kopfhörer, Lautsprecher, Controller … – als kleine Kacheln **direkt auf der Windows-Taskleiste**. Kein Öffnen von Hersteller-Apps mehr, kein Suchen im Infobereich: Du siehst jederzeit auf einen Blick, wie voll deine Akkus sind, und wirst rechtzeitig gewarnt, bevor einer leer ist.

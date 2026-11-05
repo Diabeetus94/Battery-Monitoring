@@ -65,7 +65,8 @@ namespace AkkuAnzeige
                 l = l.Replace("**", "").Replace("`", "");
                 sb.AppendLine(l);
             }
-            return sb.ToString().Trim();
+            // hoechstens eine Leerzeile zwischen den Versionen
+            return Regex.Replace(sb.ToString(), @"(\r?\n){3,}", Environment.NewLine + Environment.NewLine).Trim();
         }
     }
 
