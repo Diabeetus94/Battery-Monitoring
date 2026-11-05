@@ -51,14 +51,23 @@ $dup = $langKeys | Group-Object | Where-Object Count -gt 1
 if ($dup) { throw "Doppelte Uebersetzungen in Lang.cs: " + (($dup | ForEach-Object Name) -join ', ') }
 
 $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+# WinRT (Bluetooth-LE-Scanner fuer AirPods): Windows-Metadaten + WinRT-Bruecke des .NET Framework
+$fw = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319"
+$winrt = @(
+    "/r:$env:WINDIR\System32\WinMetadata\Windows.Devices.winmd",
+    "/r:$env:WINDIR\System32\WinMetadata\Windows.Foundation.winmd",
+    "/r:$env:WINDIR\System32\WinMetadata\Windows.Storage.winmd",
+    "/r:$fw\System.Runtime.dll", "/r:$fw\System.Runtime.WindowsRuntime.dll", "/r:$fw\System.Runtime.InteropServices.WindowsRuntime.dll",
+    "/nowarn:1701")
 & $csc /nologo /target:winexe /codepage:65001 /optimize+ /debug:pdbonly /platform:anycpu `
     "/win32icon:$src\app.ico" "/resource:$src\app.ico,AkkuAnzeige.app.ico" "/resource:$src\win.ico,AkkuAnzeige.win.ico" `
     "/resource:$out\CHANGELOG.md,AkkuAnzeige.CHANGELOG.md" "/resource:$out\CHANGELOG.de.md,AkkuAnzeige.CHANGELOG.de.md" `
     /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Core.dll /r:System.ServiceProcess.dll `
     "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\PresentationCore.dll" `
     "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\WindowsBase.dll" `
-    "/win32manifest:$src\app.manifest" `
-    "/out:$out\AkkuAnzeige.exe" "$src\AssemblyInfo.cs" "$src\AkkuAnzeige.cs" "$src\Ui.cs" "$src\Lang.cs" "$src\Vendors.cs" "$src\Info.cs" "$src\Update.cs"
+    @winrt "/win32manifest:$src\app.manifest" `
+    "/out:$out\AkkuAnzeige.exe" "$src\AssemblyInfo.cs" "$src\AkkuAnzeige.cs" "$src\Ui.cs" "$src\Lang.cs" "$src\Vendors.cs" "$src\Info.cs" "$src\Update.cs" `
+    "$src\Hid.cs" "$src\LogiHidpp.cs" "$src\DirectHid.cs" "$src\AppleBle.cs"
 if ($LASTEXITCODE -ne 0) { throw "Build (App) fehlgeschlagen" }
 Copy-Item "$src\app.ico" "$out\AkkuAnzeige.ico" -Force
 

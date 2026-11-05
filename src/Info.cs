@@ -248,8 +248,8 @@ namespace AkkuAnzeige
                 list.Controls.Add(new Label { Text = note, Bounds = new Rectangle(4, y + 18, 490, 18), ForeColor = Color.DimGray, AutoEllipsis = true });
                 y += 44;
             };
-            row(L.T("Windows-Bluetooth (eingebaut)"), Links.Enabled(Links.Bluetooth) ? L.T("verknüpft") : L.T("nicht verknüpft"),
-                L.T("Akkustand von Bluetooth-Geräten (Kopfhörer, Lautsprecher, Handys …)"));
+            foreach (var b in Links.BuiltIns)
+                row(en ? b.NameEn : b.NameDe, Links.Enabled(b.Key) ? L.T("verknüpft") : L.T("nicht verknüpft"), en ? b.NoteEn : b.NoteDe);
             foreach (var v in Vendors.Detect(true))
             {
                 bool ok = v.Support == VendorSupport.Supported;

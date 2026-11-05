@@ -83,7 +83,7 @@ namespace AkkuAnzeige
             { "Getrennte Geräte und Geräte im Ruhemodus grau anzeigen (letzter Akkustand bleibt sichtbar)", "Show disconnected and sleeping devices in gray (last battery level stays visible)" },
             { "Maus/Tastatur auch grau anzeigen, wenn sie unbenutzt sind seit", "Also show mouse/keyboard in gray when unused for" },
             { "Minuten", "minutes" },
-            { "GRENZ_INFO", "The alarm applies to every device shown on at least one monitor – as its own warning window with a warning sound that also appears with \"Do not disturb\", muted notifications and in game mode.\n\nLogitech devices come directly from G HUB (LGSTray only as fallback). Bluetooth devices appear as soon as Windows knows their battery level.\n\nChanges are shown immediately as a preview. They are only saved with \"Apply\" or \"OK\" – \"Cancel\" discards them." },
+            { "GRENZ_INFO", "The alarm applies to every device shown on at least one monitor – as its own warning window with a warning sound that also appears with \"Do not disturb\", muted notifications and in game mode.\n\nLogitech devices come from G HUB – without G HUB from LGSTray or directly from the receiver (HID++). Bluetooth devices appear as soon as Windows knows their battery level; AirPods/Beats via their Bluetooth LE broadcasts.\n\nChanges are shown immediately as a preview. They are only saved with \"Apply\" or \"OK\" – \"Cancel\" discards them." },
 
             // Einstellungen
             { "Einstellungen", "Settings" },

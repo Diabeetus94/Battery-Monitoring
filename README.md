@@ -44,6 +44,7 @@
 | 🌗 **Light / dark** | The window follows the Windows light/dark mode automatically (or fixed light / dark). |
 | 🌍 **Languages** | English and German. |
 | 🎮 **Games** | The bar hides automatically during fullscreen games. |
+| ↕️ **Auto-hide taskbar** | With *Automatically hide the taskbar* the tiles slide up and down together with the taskbar – event-driven, no polling, no CPU load while idle. |
 | 📌 **Always visible** | Stays visible above the Start menu, the notification area menu and Quick Settings. |
 | 🔌 **Driver detection** | Detects installed, compatible driver software (e.g. Logitech G HUB) and asks whether to link it. |
 
@@ -179,7 +180,13 @@ Via **ⓘ About** in the settings window (or right-click → *About*):
 | **Logitech G HUB** | ✅ compatible | battery level, charging, active / standby / off |
 | **Windows Bluetooth** (built in) | ✅ compatible | battery level of headphones, speakers, phones … |
 | **LGSTray** | ✅ fallback | Logitech battery levels if G HUB is not running |
+| **Logitech direct** (HID++, built in) | ✅ compatible | LIGHTSPEED / Unifying / Bolt receivers and USB devices without G HUB: name, type, battery level, charging, on / off |
+| **HyperX direct** (built in) | ✅ compatible | Cloud III S Wireless (dongle `03F0:06BE` / `02CC`) without NGENUITY: battery level, charging, on / off |
+| **PlayStation DualSense** (built in) | ✅ compatible | USB always; Bluetooth as soon as a program such as Steam has switched the controller to its full report (read passively only) |
+| **AirPods / Beats** (Bluetooth LE, built in) | ✅ compatible | earbud battery from their Bluetooth LE broadcasts (the emptier bud counts); scans only while an Apple audio device is connected |
 | Razer Synapse, Corsair iCUE, SteelSeries GG, HyperX NGENUITY, ASUS Armoury Crate, Logitech Options+ | 🔍 detected | battery levels not supported yet |
+
+All built-in sources only *read*: they never change settings on the device.
 
 ---
 
@@ -209,7 +216,11 @@ The script compiles the app and the setup, signs both with the local certificate
 
 | File | Content |
 |---|---|
-| `src/AkkuAnzeige.cs` | data sources (G HUB, LGSTray, Bluetooth), monitor detection, input activity |
+| `src/AkkuAnzeige.cs` | data sources (G HUB, LGSTray, Bluetooth), taskbar tracking, monitor detection, input activity |
+| `src/Hid.cs` | raw HID access (enumeration, reading/writing with timeout) |
+| `src/LogiHidpp.cs` | Logitech HID++ 2.0 (receivers and USB devices) |
+| `src/DirectHid.cs` | HyperX Cloud III S Wireless, DualSense |
+| `src/AppleBle.cs` | AirPods / Beats via Bluetooth LE advertisements (WinRT) |
 | `src/Ui.cs` | tiles, settings window, design, alarm |
 | `src/Info.cs` | About window and update check |
 | `src/Lang.cs` | translations |
@@ -221,7 +232,8 @@ The script compiles the app and the setup, signs both with the local certificate
 
 ## Known limitations (Alpha)
 
-- Battery levels from Razer, Corsair, SteelSeries, HyperX and ASUS are not read yet.
+- Battery levels from Razer, Corsair, SteelSeries, ASUS and other HyperX headsets are not read yet. NuPhy keyboards (2.4 GHz dongle `19F5:2620`) can't be read either – NuPhy's protocol is encrypted and their own software doesn't show the battery of these models.
+- DualSense over Bluetooth only shows a battery level while a program such as Steam is using the controller (switching it ourselves would break DirectInput games until the controller is power-cycled).
 - In games running in **exclusive** fullscreen no window can appear on top – you only hear the warning sound there (borderless fullscreen works).
 - Logitech standby is detected as soon as the device disconnects from its receiver; if only the lighting turns off, it still counts as active (optionally adjustable).
 - The automatic update check only works once this project is public.

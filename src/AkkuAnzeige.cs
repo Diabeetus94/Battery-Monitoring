@@ -103,6 +103,46 @@ namespace AkkuAnzeige
         [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h, int idx);
         [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr h, int idx, int val);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
+        [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+        [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr h);
+        [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h, uint cmd);
+        [DllImport("winmm.dll")] public static extern uint timeBeginPeriod(uint ms);
+        [DllImport("winmm.dll")] public static extern uint timeEndPeriod(uint ms);
+
+        static readonly uint ownPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+        public static bool IsOwnWindow(IntPtr h) { uint pid; GetWindowThreadProcessId(h, out pid); return pid == ownPid; }
+
+        // liegt ein sichtbares fremdes Fenster ueber h, das h ueberlappt?
+        public static bool IsCovered(IntPtr h)
+        {
+            RECT me;
+            if (!GetWindowRect(h, out me)) return false;
+            int n = 0;
+            for (IntPtr w = GetWindow(h, 3 /*GW_HWNDPREV*/); w != IntPtr.Zero && n < 500; w = GetWindow(w, 3), n++)
+            {
+                RECT r;
+                if (!IsWindowVisible(w) || !GetWindowRect(w, out r)) continue;
+                if (r.Left < me.Right && r.Right > me.Left && r.Top < me.Bottom && r.Bottom > me.Top) return true;
+            }
+            return false;
+        }
+
+        // liegt ein Taskleistenfenster in der Z-Reihenfolge ueber h?
+        public static bool CoveredByTopmost(IntPtr h)
+        {
+            int n = 0;
+            for (IntPtr w = GetWindow(h, 3 /*GW_HWNDPREV*/); w != IntPtr.Zero && n < 200; w = GetWindow(w, 3), n++)
+            {
+                string c = ClassOf(w);
+                if (c == "Shell_TrayWnd" || c == "Shell_SecondaryTrayWnd") return true;
+            }
+            return false;
+        }
+        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
+
+        public delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+        [DllImport("user32.dll")] public static extern IntPtr SetWinEventHook(uint evMin, uint evMax, IntPtr mod, WinEventProc cb, uint pid, uint tid, uint flags);
+        [DllImport("user32.dll")] public static extern bool UnhookWinEvent(IntPtr hook);
 
         // Taskleiste des Monitors finden (Haupt- oder Zweit-Taskleiste)
         public static IntPtr FindTaskbar(string screenName)
@@ -122,6 +162,57 @@ namespace AkkuAnzeige
         }
     }
 
+    // ======================= Taskleisten-Bewegung verfolgen =======================
+    // "Taskleiste automatisch ausblenden": Windows verschiebt das Taskleistenfenster beim Ein-/Ausfahren
+    // schrittweise (~15-30 ms je Schritt) und meldet jeden Schritt als EVENT_OBJECT_LOCATIONCHANGE.
+    // Wir haengen uns an genau diese Meldung (nur fuer den Explorer-Prozess) – kein Abfrage-Timer,
+    // im Ruhezustand also keinerlei CPU-Last, und die Kacheln bewegen sich im selben Takt wie die Taskleiste.
+    //
+    // Zweiter Hook: EVENT_SYSTEM_FOREGROUND (feuert nur bei Fensterwechseln). Ein Klick auf die Taskleiste
+    // macht sie zum Vordergrundfenster, und sie legt sich dabei ueber die Kacheln – siehe AppCtx.OnForeground.
+    class TaskbarHook
+    {
+        const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B, EVENT_SYSTEM_FOREGROUND = 0x0003, WINEVENT_OUTOFCONTEXT = 0;
+        readonly Native.WinEventProc cb, fgCb; // Referenzen halten, sonst raeumt der GC die Callbacks weg
+        readonly Action<IntPtr> moved, foreground;
+        IntPtr hook = IntPtr.Zero, fgHook = IntPtr.Zero;
+        uint pid;
+
+        public TaskbarHook(Action<IntPtr> onTaskbarMoved, Action<IntPtr> onForeground)
+        {
+            moved = onTaskbarMoved;
+            foreground = onForeground;
+            cb = (h, ev, hwnd, idObject, idChild, thread, time) =>
+            {
+                if (idObject != 0 || idChild != 0) return; // OBJID_WINDOW: nur das Fenster selbst, nicht Cursor/Caret
+                try { moved(hwnd); } catch (Exception ex) { Program.LogError(ex); }
+            };
+            fgCb = (h, ev, hwnd, idObject, idChild, thread, time) =>
+            {
+                if (idObject != 0 || idChild != 0) return;
+                try { foreground(hwnd); } catch (Exception ex) { Program.LogError(ex); }
+            };
+        }
+
+        // an = Hook auf den aktuellen Explorer setzen (auch nach einem Explorer-Neustart), aus = entfernen
+        public void Watch(bool on)
+        {
+            uint cur = 0;
+            if (on)
+            {
+                IntPtr tb = Native.FindWindowEx(IntPtr.Zero, IntPtr.Zero, "Shell_TrayWnd", null);
+                if (tb != IntPtr.Zero) Native.GetWindowThreadProcessId(tb, out cur);
+            }
+            if (on && fgHook == IntPtr.Zero)
+                fgHook = Native.SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, fgCb, 0, 0, WINEVENT_OUTOFCONTEXT);
+            else if (!on && fgHook != IntPtr.Zero) { Native.UnhookWinEvent(fgHook); fgHook = IntPtr.Zero; }
+            if (cur == pid && (hook != IntPtr.Zero) == (cur != 0)) return;
+            if (hook != IntPtr.Zero) { Native.UnhookWinEvent(hook); hook = IntPtr.Zero; }
+            pid = cur;
+            if (cur != 0) hook = Native.SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, cb, cur, 0, WINEVENT_OUTOFCONTEXT);
+        }
+    }
+
     // ======================= Datenquellen =======================
     static class DeviceReader
     {
@@ -135,8 +226,13 @@ namespace AkkuAnzeige
             List<DeviceInfo> logi = null;
             if (Links.Enabled("ghub")) { try { logi = GHub.Read(); } catch { logi = null; } }
             if (logi == null && Links.Enabled("lgstray")) { try { logi = ReadLogitech(); } catch { logi = null; } }
+            // ohne G HUB / LGSTray: Logitech-Empfaenger und -Kabelgeraete direkt ueber HID++ abfragen
+            if ((logi == null || logi.Count == 0) && Links.Enabled(Links.LogiHid)) { try { logi = LogiHidpp.Read(); } catch (Exception ex) { Program.LogError(ex); } }
             if (logi != null) list.AddRange(logi);
-            if (Links.Enabled(Links.Bluetooth)) { try { list.AddRange(ReadBluetooth()); } catch { } }
+            if (Links.Enabled(Links.Bluetooth)) { try { list.AddRange(ReadBluetooth()); } catch (Exception ex) { Program.LogError(ex); } }
+            else { try { AppleBle.Watch(false); } catch { } }
+            if (Links.Enabled(Links.HyperX)) { try { list.AddRange(HyperX.Read()); } catch (Exception ex) { Program.LogError(ex); } }
+            if (Links.Enabled(Links.DualSense)) { try { list.AddRange(DualSense.Read()); } catch (Exception ex) { Program.LogError(ex); } }
             return list;
         }
 
@@ -297,7 +393,7 @@ namespace AkkuAnzeige
             return s.Length == 0 ? null : s;
         }
 
-        class BtNode { public string Name; public bool Connected; public bool IsLe; public bool HasMain; public int? Battery; public string BattProfile; }
+        class BtNode { public string Name; public bool Connected; public bool IsLe; public bool HasMain; public int? Battery; public string BattProfile; public int Vid = -1, Pid = -1; public bool Audio; }
 
         static List<DeviceInfo> ReadBluetooth()
         {
@@ -330,6 +426,10 @@ namespace AkkuAnzeige
 
                         BtNode n;
                         if (!nodes.TryGetValue(mac, out n)) { n = new BtNode(); nodes[mac] = n; }
+                        // Hersteller/Modell aus den Profil-Eintraegen, z.B. "..._VID&0001004C_PID&2027\..."
+                        var vp = Regex.Match(iid, @"_VID&[0-9A-F]{4}([0-9A-F]{4})_PID&([0-9A-F]{4})");
+                        if (vp.Success && n.Vid < 0) { n.Vid = Convert.ToInt32(vp.Groups[1].Value, 16); n.Pid = Convert.ToInt32(vp.Groups[2].Value, 16); }
+                        if (iid.Contains("{0000110B-") || iid.Contains("{0000111E-")) n.Audio = true; // Audio-Senke / Freisprech-Profil
                         if (isMain)
                         {
                             n.HasMain = true;
@@ -350,10 +450,14 @@ namespace AkkuAnzeige
             }
 
             var list = new List<DeviceInfo>();
+            bool appleConnected = false;
+            bool airpods = Links.Enabled(Links.AirPods);
             foreach (var kv in nodes)
             {
                 var n = kv.Value;
-                if (!n.Battery.HasValue || !n.HasMain) continue;
+                if (!n.HasMain) continue;
+                bool apple = airpods && n.Vid == 0x004C && n.Audio && !n.Battery.HasValue; // AirPods/Beats: Windows kennt keinen Akkustand
+                if (!n.Battery.HasValue && !apple) continue;
                 string name = n.Name ?? ("Bluetooth " + kv.Key);
                 var di = new DeviceInfo();
                 di.Id = "bt:" + kv.Key;
@@ -362,9 +466,33 @@ namespace AkkuAnzeige
                 di.Connected = n.Connected;
                 di.Percent = n.Battery; // auch getrennt: letzter von Windows gemerkter Wert
                 di.DefaultIcon = GuessIcon(name, n.BattProfile);
+                if (apple)
+                {
+                    di.Source = "Bluetooth (Apple)";
+                    di.DefaultIcon = "Kopfhörer";
+                    if (n.Connected)
+                    {
+                        appleConnected = true;
+                        ApplyPods(di, n.Pid);
+                    }
+                }
                 list.Add(di);
             }
+            // BLE-Scanner nur, solange AirPods/Beats verbunden sind
+            try { AppleBle.Watch(appleConnected); } catch (Exception ex) { Program.LogError(ex); }
             return list;
+        }
+
+        // Akkustand der Ohrhoerer: der leerere zaehlt (Case wird ignoriert); fehlt ein Wert, der andere
+        static void ApplyPods(DeviceInfo di, int model)
+        {
+            ApplePods p;
+            try { p = AppleBle.Get(model); } catch { return; }
+            if (p == null) return;
+            if (p.Left.HasValue && p.Right.HasValue) di.Percent = Math.Min(p.Left.Value, p.Right.Value);
+            else di.Percent = p.Left ?? p.Right;
+            if (!di.Percent.HasValue) return;
+            di.Charging = (!p.Left.HasValue || p.LeftCharging) && (!p.Right.HasValue || p.RightCharging);
         }
 
         static string GuessIcon(string name, string profile)

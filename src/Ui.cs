@@ -64,6 +64,9 @@ namespace AkkuAnzeige
         public List<DeviceEntry> Devices { get; set; }
         public bool AllMonitors { get; set; }
         public List<string> Monitors { get; set; }
+        // true, sobald der Nutzer die Geraeteauswahl einmal uebernommen hat; vorher werden gefundene
+        // Geraete automatisch auf leeren Monitor-Leisten angezeigt (damit nach der Installation etwas zu sehen ist)
+        public bool DevicesConfigured { get; set; }
 
         public AppSettings()
         {
@@ -86,24 +89,29 @@ namespace AkkuAnzeige
         static string Dir { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AkkuAnzeige"); } }
         static string FilePath { get { return Path.Combine(Dir, "settings.json"); } }
 
-        public static List<DeviceEntry> DefaultDevices()
+        // Neue Monitore starten ohne Geraete – gefundene Geraete kommen automatisch dazu (siehe DevicesConfigured)
+        public static List<DeviceEntry> DefaultDevices() { return new List<DeviceEntry>(); }
+
+        // Fruehere Versionen haben auf jedem PC fest drei Beispielgeraete eingetragen (die Geraete des Autors).
+        // Die entfernen, wenn sie auf diesem PC nie gesehen wurden.
+        static readonly string[] OldSampleIds = { "logi:G502", "logi:G915", "bt:7CE9132D4420" };
+        void DropUnseenSamples(List<DeviceEntry> list)
         {
-            return new List<DeviceEntry>
-            {
-                new DeviceEntry { Id = "logi:G502", Label = "G502 X Plus", Icon = "Maus" },
-                new DeviceEntry { Id = "logi:G915", Label = "G915 TKL", Icon = "Tastatur" },
-                new DeviceEntry { Id = "bt:7CE9132D4420", Label = "Soundcore Space One", Icon = "Kopfhörer" }
-            };
+            if (list != null) list.RemoveAll(d => OldSampleIds.Contains(d.Id) && !LastPercent.ContainsKey(d.Id));
         }
 
         public static AppSettings Load()
         {
             AppSettings s = null;
-            bool fresh = false;
+            bool fresh = false, hadFlag = false;
             try
             {
                 if (File.Exists(FilePath))
-                    s = new JavaScriptSerializer().Deserialize<AppSettings>(File.ReadAllText(FilePath, Encoding.UTF8));
+                {
+                    string json = File.ReadAllText(FilePath, Encoding.UTF8);
+                    s = new JavaScriptSerializer().Deserialize<AppSettings>(json);
+                    hadFlag = json.Contains("\"DevicesConfigured\"");
+                }
             }
             catch { }
             if (s == null) { s = new AppSettings(); fresh = true; }
@@ -130,6 +138,7 @@ namespace AkkuAnzeige
                 else legacyMons.Add(m);
             }
             var legacyDevices = s.Devices.Count > 0 ? s.Devices : DefaultDevices();
+            s.DropUnseenSamples(legacyDevices);
 
             foreach (var k in s.KnownMonitors)
             {
@@ -139,6 +148,7 @@ namespace AkkuAnzeige
                     k.Enabled = s.AllMonitors || legacyMons.Contains(k.Id);
                 }
                 if (k.Size < 50 || k.Size > 200) k.Size = 100;
+                s.DropUnseenSamples(k.Devices);
             }
             foreach (var mi in cur)
             {
@@ -153,6 +163,8 @@ namespace AkkuAnzeige
             s.Devices = new List<DeviceEntry>();
             s.Monitors = new List<string>();
             s.AllMonitors = false;
+            // Einstellungen aus aelteren Versionen: wer schon eigene Geraete ausgewaehlt hat, bekommt nichts automatisch dazu
+            if (!fresh && !hadFlag) s.DevicesConfigured = s.KnownMonitors.Any(k => k.Devices != null && k.Devices.Count > 0);
             return s;
         }
 
@@ -211,6 +223,7 @@ namespace AkkuAnzeige
             tray.Visible = true;
             tray.DoubleClick += delegate { ShowSettings(); };
 
+            taskbarHook = new TaskbarHook(OnTaskbarMoved, OnForeground);
             RebuildBars();
             SystemEvents.DisplaySettingsChanged += OnDisplayChanged;
             SystemEvents.UserPreferenceChanged += OnUserPrefChanged;
@@ -221,7 +234,9 @@ namespace AkkuAnzeige
             pollTimer.Start();
 
             keepTimer = new System.Windows.Forms.Timer();
-            keepTimer.Interval = 300; // schnell wieder in den Vordergrund, falls die Taskleiste sich darueberlegt
+            // nur noch Sicherheitsnetz: Fensterwechsel (Vollbild-Spiel, Klick auf die Taskleiste) und Taskleisten-
+            // Bewegungen kommen sofort ueber TaskbarHook; frueher 300 ms
+            keepTimer.Interval = 1000;
             keepTimer.Tick += delegate { Keep(); };
             keepTimer.Start();
 
@@ -390,11 +405,30 @@ namespace AkkuAnzeige
                 int old;
                 if (!Settings.LastPercent.TryGetValue(d.Id, out old) || old != d.Percent.Value) { Settings.LastPercent[d.Id] = d.Percent.Value; changed = true; }
             }
+            if (AutoAddDevices(l)) { changed = true; RebuildBars(); }
             if (changed) { try { Settings.Save(); } catch { } }
             foreach (var b in bars) b.Invalidate();
             CheckAlarms();
             UpdateTrayText();
             if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.UpdateDevices(l);
+        }
+
+        // Bis der Nutzer selbst Geraete auswaehlt: gefundene Geraete auf den aktivierten Leisten anzeigen
+        bool AutoAddDevices(List<DeviceInfo> l)
+        {
+            // bei offenem Einstellungsfenster haken die Monitor-Reiter neue Geraete selbst an (sonst wuerde
+            // die Fenster-Kopie der Auswahl die Ergaenzungen beim naechsten Vorschau-Schritt wieder verwerfen)
+            if (Settings.DevicesConfigured || preview != null || l.Count == 0) return false;
+            if (settingsForm != null && !settingsForm.IsDisposed) return false;
+            bool added = false;
+            foreach (var m in Settings.KnownMonitors.Where(x => x.Enabled && x.Devices != null))
+                foreach (var d in l)
+                    if (!m.Devices.Any(x => x.Id == d.Id))
+                    {
+                        m.Devices.Add(new DeviceEntry { Id = d.Id, Label = d.Name, Icon = d.DefaultIcon ?? "Bluetooth" });
+                        added = true;
+                    }
+            return added;
         }
 
         public DeviceInfo Get(string id) { DeviceInfo d; return data.TryGetValue(id, out d) ? d : null; }
@@ -548,25 +582,35 @@ namespace AkkuAnzeige
 
         public void RebuildBars()
         {
-            foreach (var b in bars) { b.Close(); b.Dispose(); }
-            bars.Clear();
             screenSig = ScreenSig();
             var mons = Displays.GetAll();
             if (RememberMonitors(mons)) { try { Settings.Save(); } catch { } }
             var config = preview ?? Settings.KnownMonitors;
+            // Vorhandene Leisten weiterverwenden und nur die Konfiguration tauschen: ein NEU angelegtes Fenster
+            // nimmt dem Einstellungsfenster den Tastaturfokus (sonst muss man nach jedem Buchstaben im
+            // Anzeigenamen wieder ins Feld klicken, weil die Vorschau die Leisten neu aufbaut).
+            var keep = new List<BarForm>();
             foreach (var mi in mons)
             {
                 if (!mi.Active || mi.GdiName == null) continue;
                 var cfg = config.FirstOrDefault(x => x.Id == mi.Id);
                 if (cfg == null || !cfg.Enabled || cfg.Devices == null || cfg.Devices.Count == 0) continue;
                 if (!Screen.AllScreens.Any(s => s.DeviceName == mi.GdiName)) continue;
-                var b = new BarForm(this, mi.GdiName, cfg);
-                bars.Add(b);
-                b.UpdatePosition();
-                b.Show();
-                // Einhaengen in die Taskleiste (TryEmbed) funktioniert unter Windows 11 nicht:
-                // die XAML-Taskleiste uebermalt eingehaengte Fenster komplett -> immer-im-Vordergrund-Fenster
+                var b = bars.FirstOrDefault(x => x.ScreenName == mi.GdiName && !keep.Contains(x));
+                if (b == null)
+                {
+                    b = new BarForm(this, mi.GdiName, cfg);
+                    b.UpdatePosition();
+                    b.Show();
+                    // Einhaengen in die Taskleiste (TryEmbed) funktioniert unter Windows 11 nicht:
+                    // die XAML-Taskleiste uebermalt eingehaengte Fenster komplett -> immer-im-Vordergrund-Fenster
+                }
+                else b.SetConfig(cfg);
+                keep.Add(b);
             }
+            foreach (var b in bars.Where(x => !keep.Contains(x))) { b.Close(); b.Dispose(); }
+            bars = keep;
+            taskbarHook.Watch(bars.Count > 0);
         }
 
         void OnDisplayChanged(object sender, EventArgs e)
@@ -584,12 +628,19 @@ namespace AkkuAnzeige
             if (fg != IntPtr.Zero && !bars.Any(b => b.Handle == fg))
             {
                 // Startmenue, Infobereich, Schnelleinstellungen usw. sind KEIN Vollbild-Spiel
-                if (!Native.IsShellWindow(fg) && Native.ProcessNameOf(fg) != System.Diagnostics.Process.GetCurrentProcess().ProcessName)
+                // eigenes Fenster per Prozess-ID erkennen: Process.GetCurrentProcess().ProcessName zaehlt unter dem
+                // .NET Framework bei jedem Aufruf alle Prozesse auf (gemessen 2,3 ms CPU – alle 300 ms der Grossteil
+                // der Leerlauf-Last)
+                if (!Native.IsOwnWindow(fg) && !Native.IsShellWindow(fg))
                 {
                     Native.RECT r;
                     Native.GetWindowRect(fg, out r);
                     var s = Screen.FromHandle(fg);
-                    if (r.Left <= s.Bounds.Left && r.Top <= s.Bounds.Top && r.Right >= s.Bounds.Right && r.Bottom >= s.Bounds.Bottom)
+                    // Ein maximiertes Fenster mit Titelleiste ist kein Vollbild – bei automatisch ausblendender
+                    // Taskleiste bedeckt es aber ebenfalls den ganzen Bildschirm.
+                    const int WS_CAPTION = 0x00C00000;
+                    bool maximizedWindow = Native.IsZoomed(fg) && (Native.GetWindowLong(fg, -16) & WS_CAPTION) == WS_CAPTION;
+                    if (!maximizedWindow && r.Left <= s.Bounds.Left && r.Top <= s.Bounds.Top && r.Right >= s.Bounds.Right && r.Bottom >= s.Bounds.Bottom)
                         fullScreenDev = s.DeviceName;
                 }
             }
@@ -600,17 +651,76 @@ namespace AkkuAnzeige
                 RebuildBars();
                 return;
             }
+            fullScreen = fullScreenDev;
+            taskbarHook.Watch(bars.Count > 0); // Explorer neu gestartet -> neu einhaengen
             foreach (var b in bars)
             {
                 b.UpdatePosition();
                 if (b.Embedded) continue; // Teil der Taskleiste: verschwindet bei Vollbild automatisch mit ihr
-                bool hide = b.ScreenName == fullScreenDev;
-                if (hide) { if (b.Visible) b.Hide(); }
-                else
+                ShowOnTop(b);
+            }
+        }
+
+        TaskbarHook taskbarHook;
+        string fullScreen; // Monitor mit Vollbild-Spiel (aus dem letzten Keep)
+
+        void ShowOnTop(BarForm b)
+        {
+            bool hide = b.ScreenName == fullScreen || b.OffScreen;
+            b.SetShown(!hide);
+            // nur hochlegen, wenn wirklich ein sichtbares Fenster darueberliegt (SetWindowPos kostet sonst bei jedem
+            // Durchlauf ~0,2 ms fuer nichts)
+            if (!hide && Native.IsCovered(b.Handle)) Native.SetWindowPos(b.Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0013); // TOPMOST, NOSIZE|NOMOVE|NOACTIVATE
+        }
+
+        // Leiste hat sich selbst bewegt (Gleiten nach dem Verlassen mit der Maus)
+        public void BarMoved(BarForm b) { ShowOnTop(b); }
+
+        // Taskleiste hat sich bewegt (Ein-/Ausfahren bei automatischem Ausblenden): sofort mitziehen
+        // Taskleiste wird aktiviert (Klick darauf): sie schiebt sich dabei ueber alle Immer-im-Vordergrund-Fenster,
+        // auch ueber die Kacheln, bis Keep() sie nach bis zu 300 ms zurueckholt (= sichtbares Wegblinken).
+        // Jetzt: sofort wieder darueberlegen, und weil die Taskleiste sich manchmal erst kurz NACH dieser
+        // Meldung nach vorn schiebt, wacht 200 ms lang ein Hintergrund-Thread im 1-ms-Takt (ein Fenster-Timer
+        // waere mit ~16 ms zu grob). Gemessen: verdeckt nur noch 1-2 ms statt 60-330 ms. Laeuft nur nach
+        // einer Taskleisten-Aktivierung, sonst nie.
+        volatile int guardUntil; // wird vom Waechter-Thread gelesen
+        Thread guard;
+
+        void OnForeground(IntPtr hwnd)
+        {
+            Keep(); // Vollbild-Erkennung + Hochlegen sofort beim Fensterwechsel statt erst beim naechsten Timer
+            string cls = Native.ClassOf(hwnd);
+            if (cls != "Shell_TrayWnd" && cls != "Shell_SecondaryTrayWnd") return;
+            guardUntil = Environment.TickCount + 200;
+            if (guard != null && guard.IsAlive) return;
+            var handles = bars.Where(b => !b.Embedded && b.Visible).Select(b => b.Handle).ToArray();
+            guard = new Thread(() =>
+            {
+                Native.timeBeginPeriod(1);
+                try
                 {
-                    if (!b.Visible) b.Show();
-                    Native.SetWindowPos(b.Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0013);
+                    while (Environment.TickCount - guardUntil < 0)
+                    {
+                        foreach (var h in handles)
+                            if (Native.IsWindowVisible(h) && Native.CoveredByTopmost(h))
+                                Native.SetWindowPos(h, new IntPtr(-1), 0, 0, 0, 0, 0x0013); // TOPMOST, NOSIZE|NOMOVE|NOACTIVATE
+                        Thread.Sleep(1);
+                    }
                 }
+                catch { }
+                finally { Native.timeEndPeriod(1); }
+            });
+            guard.IsBackground = true;
+            guard.Start();
+        }
+
+        void OnTaskbarMoved(IntPtr hwnd)
+        {
+            foreach (var b in bars)
+            {
+                if (b.TaskbarWnd != hwnd || b.Embedded) continue;
+                b.UpdatePosition();
+                ShowOnTop(b); // die Taskleiste holt sich beim Einfahren nach vorn -> wieder darueber legen
             }
         }
 
@@ -627,6 +737,7 @@ namespace AkkuAnzeige
             foreach (var k in Settings.KnownMonitors)
                 if (!monitors.Any(m => m.Id == k.Id)) monitors.Add(k);
             Settings.KnownMonitors = monitors;
+            Settings.DevicesConfigured = true;
             Settings.WarnLevel = warnLevel;
             Settings.Save();
             preview = null;
@@ -661,6 +772,8 @@ namespace AkkuAnzeige
             SystemEvents.DisplaySettingsChanged -= OnDisplayChanged;
             SystemEvents.UserPreferenceChanged -= OnUserPrefChanged;
             pollTimer.Stop(); keepTimer.Stop();
+            guardUntil = Environment.TickCount;
+            taskbarHook.Watch(false);
             tray.Visible = false; tray.Dispose();
             foreach (var b in bars) b.Close();
             if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.Close();
@@ -760,31 +873,143 @@ namespace AkkuAnzeige
         int TileWidth { get { return (int)(ctx.Settings.TileWidth * ctx.Scale * cfg.Size / 100f); } }
         int Gap { get { return (int)(6 * ctx.Scale); } }
 
+        // neue Konfiguration (Vorschau / Uebernehmen) ohne das Fenster neu anzulegen
+        public void SetConfig(MonitorEntry config)
+        {
+            cfg = config;
+            UpdatePosition();
+            Invalidate();
+        }
+
+        // Taskleiste dieses Monitors (fuer automatisch ausblendende Taskleisten: folgt ihrer Position)
+        public IntPtr TaskbarWnd = IntPtr.Zero;
+        // Leiste liegt gerade unterhalb des Bildschirms (Taskleiste ausgeblendet)
+        public bool OffScreen;
+
         public void UpdatePosition()
         {
             Screen s = Screen.AllScreens.FirstOrDefault(scr => scr.DeviceName == ScreenName);
             if (s == null) return;
             int tbH = s.Bounds.Bottom - s.WorkingArea.Bottom;
-            if (tbH <= 0) tbH = (int)(48 * ctx.Scale);
+            int tbTop = s.Bounds.Bottom - tbH;
+            // Die echte Lage der Taskleiste verwenden: bei "Taskleiste automatisch ausblenden" ist die
+            // Arbeitsflaeche der ganze Bildschirm, die Taskleiste faehrt aber hoch und runter.
+            Native.RECT tr;
+            if (!IsOwnTaskbar(TaskbarWnd, s, out tr)) TaskbarWnd = FindOwnTaskbar(s, out tr);
+            if (TaskbarWnd != IntPtr.Zero)
+            {
+                tbH = tr.Bottom - tr.Top;
+                tbTop = tr.Top;
+            }
+            if (tbH <= 0) { tbH = (int)(48 * ctx.Scale); tbTop = s.Bounds.Bottom - tbH; }
             int pad = (int)(4 * ctx.Scale);
             int h = Math.Max(16, tbH - 2 * pad);   // Hoehe immer passend zur Taskleiste
             EnsureFonts(h / 40f);
             int n = cfg.Devices.Count;
             int w = Math.Max(1, n * TileWidth + (n - 1) * Gap);
             int x = s.Bounds.Left + (int)(8 * ctx.Scale);
-            int y = s.Bounds.Bottom - tbH + pad;
+            int y = tbTop + pad;
+            // Maus auf den Kacheln: Windows zaehlt das nicht als "ueber der Taskleiste" und faehrt sie ein.
+            // Die Kacheln bleiben dann stehen, bis die Maus sie verlaesst (danach gleiten sie hinterher).
+            if (hovering && y > Top && !Embedded) { y = Top; }
+            // komplett ausgeblendete Taskleiste: Kacheln nicht auf einem darunterliegenden Monitor zeigen
+            OffScreen = y >= s.Bounds.Bottom;
             if (Embedded)
             {
                 // Koordinaten relativ zur Taskleiste
-                Native.RECT tr;
-                if (!Native.GetWindowRect(Taskbar, out tr)) return;
-                int rx = x - tr.Left, ry = y - tr.Top;
+                Native.RECT er;
+                if (!Native.GetWindowRect(Taskbar, out er)) return;
+                int rx = x - er.Left, ry = y - er.Top;
                 bool sizeChanged = Width != w || Height != h;
                 Native.SetWindowPos(Handle, IntPtr.Zero, rx, ry, w, h, 0x0010 | 0x0040); // NOACTIVATE | SHOWWINDOW, oben in der Taskleiste
                 if (sizeChanged) Invalidate();
                 return;
             }
-            if (Left != x || Top != y || Width != w || Height != h) { SetBounds(x, y, w, h); Invalidate(); }
+            bool resized = Width != w || Height != h;
+            if (gliding && !resized && Left == x && Top != y && !hovering)
+            {
+                // nach dem Verlassen: in wenigen Schritten zur Taskleiste gleiten statt zu springen
+                glideTo = y;
+                OffScreen = Top >= s.Bounds.Bottom; // erst ausblenden, wenn sie wirklich unten angekommen ist
+                if (!glide.Enabled) glide.Start();
+                return;
+            }
+            StopGlide();
+            if (resized || Left != x || Top != y) SetBounds(x, y, w, h); // reines Verschieben braucht kein Neuzeichnen
+            if (resized) Invalidate();
+        }
+
+        // Taskleiste des eigenen Monitors: unten, mindestens halb so breit, Oberkante auf diesem Monitor
+        // (eine ausgeblendete Taskleiste ragt nach unten heraus - Screen.FromRectangle wuerde bei
+        // uebereinander stehenden Monitoren den falschen liefern)
+        static bool IsOwnTaskbar(IntPtr h, Screen s, out Native.RECT r)
+        {
+            r = new Native.RECT();
+            if (h == IntPtr.Zero || !Native.GetWindowRect(h, out r)) return false;
+            int overlap = Math.Min(r.Right, s.Bounds.Right) - Math.Max(r.Left, s.Bounds.Left);
+            return r.Bottom > r.Top && overlap >= s.Bounds.Width / 2
+                && r.Top >= s.Bounds.Top && r.Top < s.Bounds.Bottom && r.Bottom >= s.Bounds.Bottom - 2;
+        }
+
+        static IntPtr FindOwnTaskbar(Screen s, out Native.RECT r)
+        {
+            foreach (var cls in new[] { "Shell_TrayWnd", "Shell_SecondaryTrayWnd" })
+            {
+                IntPtr h = IntPtr.Zero;
+                while ((h = Native.FindWindowEx(IntPtr.Zero, h, cls, null)) != IntPtr.Zero)
+                    if (IsOwnTaskbar(h, s, out r)) return h;
+            }
+            r = new Native.RECT();
+            return IntPtr.Zero;
+        }
+
+        bool hovering, gliding;
+        System.Windows.Forms.Timer glide; // laeuft nur kurz nach dem Verlassen der Kacheln
+        int glideTo;
+
+        void StopGlide()
+        {
+            gliding = false;
+            if (glide != null) glide.Stop();
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); hovering = true; StopGlide(); }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            hovering = false;
+            if (glide == null)
+            {
+                glide = new System.Windows.Forms.Timer { Interval = 15 };
+                glide.Tick += delegate
+                {
+                    if (IsDisposed) { StopGlide(); return; }
+                    int d = glideTo - Top;
+                    if (Math.Abs(d) <= 1) { StopGlide(); Top = glideTo; }
+                    else Top += d > 0 ? Math.Max(1, d / 3) : Math.Min(-1, d / 3);
+                    Screen s = Screen.AllScreens.FirstOrDefault(scr => scr.DeviceName == ScreenName);
+                    if (s != null) OffScreen = Top >= s.Bounds.Bottom;
+                    ctx.BarMoved(this);
+                };
+            }
+            gliding = true;
+            UpdatePosition();         // startet das Gleiten, falls die Taskleiste inzwischen woanders ist
+            if (!glide.Enabled) gliding = false;
+            ctx.BarMoved(this);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && glide != null) { glide.Stop(); glide.Dispose(); glide = null; }
+            base.Dispose(disposing);
+        }
+
+        // sichtbar/unsichtbar, ohne zu aktivieren (Form.Show() wuerde den Fokus stehlen)
+        public void SetShown(bool show)
+        {
+            if (show == Native.IsWindowVisible(Handle)) return;
+            Native.ShowWindow(Handle, show ? 4 /*SW_SHOWNOACTIVATE*/ : 0 /*SW_HIDE*/);
         }
 
         static GraphicsPath RoundRect(Rectangle r, int rad)
@@ -1351,6 +1576,7 @@ namespace AkkuAnzeige
     class MonitorPage : Panel
     {
         SettingsForm owner;
+        AppCtx app;
         public MonitorEntry Entry;
         public string GdiName;
         public int Num;
@@ -1365,7 +1591,7 @@ namespace AkkuAnzeige
 
         public MonitorPage(SettingsForm o, int num, MonitorEntry entry, MonitorInfo info, AppCtx ctx)
         {
-            owner = o; Num = num; Entry = entry;
+            owner = o; Num = num; Entry = entry; app = ctx;
             GdiName = info != null && info.Active ? info.GdiName : null;
             bool connected = info != null;
             Text = num + ". " + entry.Name + (GdiName == null ? L.T(" (aus)") : "");
@@ -1404,7 +1630,7 @@ namespace AkkuAnzeige
 
             foreach (var d in entry.Devices)
                 rows.Add(new Row { Id = d.Id, Label = d.Label, Icon = d.Icon, Checked = true, Info = ctx.Get(d.Id) });
-            AddNewRows(ctx.Available);
+            if (AddNewRows(ctx.Available)) Sync();
             FillList(-1);
             UpdateSizeLabel();
 
@@ -1488,16 +1714,28 @@ namespace AkkuAnzeige
             owner.Changed();
         }
 
-        void AddNewRows(List<DeviceInfo> list)
+        // true = mindestens ein neues Geraet wurde gleich angehakt
+        bool AddNewRows(List<DeviceInfo> list)
         {
+            // solange der Nutzer noch nie selbst ausgewaehlt hat: gefundene Geraete auf aktiven Leisten anhaken
+            bool autoCheck = !app.Settings.DevicesConfigured && chkEn != null && chkEn.Checked;
+            bool any = false;
             foreach (var d in list)
                 if (!rows.Any(r => r.Id == d.Id))
-                    rows.Add(new Row { Id = d.Id, Label = d.Name, Icon = d.DefaultIcon, Checked = false, Info = d });
+                {
+                    rows.Add(new Row { Id = d.Id, Label = d.Name, Icon = d.DefaultIcon, Checked = autoCheck, Info = d });
+                    any |= autoCheck;
+                }
+            return any;
         }
 
         static string[] SubTexts(Row r)
         {
-            if (r.Info == null) return new[] { r.Id.StartsWith("logi:") ? L.T("(G HUB?)") : L.T("(nicht gefunden)"), r.Id.StartsWith("logi:") ? "Logitech" : "Bluetooth", "--" };
+            if (r.Info == null)
+            {
+                string src = r.Id.StartsWith("logi:") ? "Logitech" : r.Id.StartsWith("hyperx:") ? "HyperX" : r.Id.StartsWith("ds:") ? "DualSense" : "Bluetooth";
+                return new[] { r.Id.StartsWith("logi:") ? L.T("(G HUB?)") : L.T("(nicht gefunden)"), src, "--" };
+            }
             string off = r.Id.StartsWith("logi:") ? L.T("Ruhe/aus") : L.T("getrennt");
             string akku = !r.Info.Percent.HasValue ? off
                         : !r.Info.Connected ? off + " (" + r.Info.Percent.Value + " %)"
@@ -1531,10 +1769,11 @@ namespace AkkuAnzeige
         {
             foreach (var r in rows) r.Info = list.FirstOrDefault(d => d.Id == r.Id);
             int before = rows.Count;
-            AddNewRows(list);
+            bool checkedNew = AddNewRows(list);
             if (rows.Count != before || lv.Items.Count != rows.Count)
             {
                 FillList(lv.SelectedIndices.Count > 0 ? lv.SelectedIndices[0] : -1);
+                if (checkedNew) Sync();
                 return;
             }
             lv.BeginUpdate();
@@ -1676,8 +1915,9 @@ namespace AkkuAnzeige
                 Text = L.K("GRENZ_INFO",
                        "Alarm kommt für alle Geräte, die auf mindestens einem Monitor angezeigt werden – als eigenes Warnfenster " +
                        "mit Warnton, das auch bei \"Nicht stören\", stummgeschalteten Benachrichtigungen und im Spielmodus erscheint.\n\n" +
-                       "Logitech-Geräte kommen direkt aus G HUB (LGSTray nur als Ersatz). Bluetooth-Geräte erscheinen, " +
-                       "sobald Windows ihren Akkustand kennt.\n\nÄnderungen siehst du sofort als Vorschau. " +
+                       "Logitech-Geräte kommen aus G HUB – ohne G HUB aus LGSTray oder direkt vom Empfänger (HID++). " +
+                       "Bluetooth-Geräte erscheinen, sobald Windows ihren Akkustand kennt; AirPods/Beats über ihre Bluetooth-LE-Signale.\n\n" +
+                       "Änderungen siehst du sofort als Vorschau. " +
                        "Gespeichert wird erst mit \"Übernehmen\" oder \"OK\" – \"Abbrechen\" verwirft sie."),
                 Bounds = new Rectangle(16, 330, 600, 160),
                 ForeColor = Color.DimGray
@@ -1747,19 +1987,22 @@ namespace AkkuAnzeige
                        "Die Akku-Kacheln auf der Taskleiste passen sich immer automatisch an die Farbe der Taskleiste an."));
 
             // Datenquellen: welche (kompatiblen, installierten) Programme mit der Akku-Anzeige verknuepft sind
-            var gSrc = new GroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 608, 112) };
-            int sx = 12, sy = 24;
-            var srcs = new List<KeyValuePair<string, string>> { new KeyValuePair<string, string>(Links.Bluetooth, L.T("Windows-Bluetooth (eingebaut)")) };
+            var gSrc = new GroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 608, 118) };
+            int sx = 12, sy = 22;
+            bool en = L.Current == "en";
+            var srcs = Links.BuiltIns.Select(b => new { Key = b.Key, Name = en ? b.NameEn : b.NameDe, Note = en ? b.NoteEn : b.NoteDe }).ToList();
             foreach (var v in Vendors.Detect(true).Where(x => x.Support == VendorSupport.Supported))
-                srcs.Add(new KeyValuePair<string, string>(v.Key, v.Name));
-            foreach (var kv in srcs)
+                srcs.Add(new { Key = v.Key, Name = v.Name, Note = en ? v.NoteEn : v.NoteDe });
+            var srcTip = new ToolTip { AutoPopDelay = 20000 };
+            foreach (var src in srcs)
             {
-                var cb = new CheckBox { Text = kv.Value, Tag = kv.Key, Checked = Links.Enabled(kv.Key), Bounds = new Rectangle(sx, sy, 280, 24) };
+                var cb = new CheckBox { Text = src.Name, Tag = src.Key, Checked = Links.Enabled(src.Key), Bounds = new Rectangle(sx, sy, 190, 24), AutoEllipsis = true };
+                srcTip.SetToolTip(cb, src.Note);
                 srcChecks.Add(cb);
                 gSrc.Controls.Add(cb);
-                if (sx == 12) sx = 316; else { sx = 12; sy += 26; }
+                if (sx < 404) sx += 196; else { sx = 12; sy += 24; }
             }
-            var lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 86, 584, 18), ForeColor = Color.DimGray };
+            var lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 96, 584, 18), ForeColor = Color.DimGray };
             gSrc.Controls.Add(lblSrcHint);
             // Info: Version, Hersteller, Update-Suche (frueher eigenes Fenster)
             gInfo = new GroupBox { Text = L.T("Info"), Bounds = new Rectangle(8, 576, 608, 176) };
