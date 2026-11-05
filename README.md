@@ -44,6 +44,7 @@
 | 🌗 **Light / dark** | The window follows the Windows light/dark mode automatically (or fixed light / dark). |
 | 🌍 **Languages** | English and German. |
 | 🎮 **Games** | The bar hides automatically during fullscreen games. |
+| ↕️ **Auto-hide taskbar** | With *Automatically hide the taskbar* the tiles slide up and down together with the taskbar – event-driven, no polling, no CPU load while idle. |
 | 📌 **Always visible** | Stays visible above the Start menu, the notification area menu and Quick Settings. |
 | 🔌 **Driver detection** | Detects installed, compatible driver software (e.g. Logitech G HUB) and asks whether to link it. |
 

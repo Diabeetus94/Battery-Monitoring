@@ -44,6 +44,7 @@
 | 🌗 **Hell / Dunkel** | Das Fenster passt sich automatisch an den Windows-Modus an (oder fest hell / dunkel). |
 | 🌍 **Sprachen** | Deutsch und Englisch. |
 | 🎮 **Spiele** | Bei Vollbild-Spielen blendet sich die Leiste automatisch aus. |
+| ↕️ **Automatisch ausblendende Taskleiste** | Bei *Taskleiste automatisch ausblenden* fahren die Kacheln mit der Taskleiste hoch und runter – ereignisgesteuert, ohne Abfrage-Timer, im Ruhezustand ohne CPU-Last. |
 | 📌 **Immer sichtbar** | Bleibt auch über Startmenü, Infobereich-Menü und Schnelleinstellungen sichtbar. |
 | 🔌 **Treiber-Erkennung** | Erkennt installierte, kompatible Treiber-Software (z. B. Logitech G HUB) und fragt, ob sie verknüpft werden soll. |
 

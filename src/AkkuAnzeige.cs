@@ -103,6 +103,13 @@ namespace AkkuAnzeige
         [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h, int idx);
         [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr h, int idx, int val);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
+        [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+        [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr h);
+        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
+
+        public delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+        [DllImport("user32.dll")] public static extern IntPtr SetWinEventHook(uint evMin, uint evMax, IntPtr mod, WinEventProc cb, uint pid, uint tid, uint flags);
+        [DllImport("user32.dll")] public static extern bool UnhookWinEvent(IntPtr hook);
 
         // Taskleiste des Monitors finden (Haupt- oder Zweit-Taskleiste)
         public static IntPtr FindTaskbar(string screenName)
@@ -119,6 +126,45 @@ namespace AkkuAnzeige
                 }
             }
             return IntPtr.Zero;
+        }
+    }
+
+    // ======================= Taskleisten-Bewegung verfolgen =======================
+    // "Taskleiste automatisch ausblenden": Windows verschiebt das Taskleistenfenster beim Ein-/Ausfahren
+    // schrittweise (~15-30 ms je Schritt) und meldet jeden Schritt als EVENT_OBJECT_LOCATIONCHANGE.
+    // Wir haengen uns an genau diese Meldung (nur fuer den Explorer-Prozess) – kein Abfrage-Timer,
+    // im Ruhezustand also keinerlei CPU-Last, und die Kacheln bewegen sich im selben Takt wie die Taskleiste.
+    class TaskbarHook
+    {
+        const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B, WINEVENT_OUTOFCONTEXT = 0;
+        readonly Native.WinEventProc cb; // Referenz halten, sonst raeumt der GC den Callback weg
+        readonly Action<IntPtr> moved;
+        IntPtr hook = IntPtr.Zero;
+        uint pid;
+
+        public TaskbarHook(Action<IntPtr> onTaskbarMoved)
+        {
+            moved = onTaskbarMoved;
+            cb = (h, ev, hwnd, idObject, idChild, thread, time) =>
+            {
+                if (idObject != 0 || idChild != 0) return; // OBJID_WINDOW: nur das Fenster selbst, nicht Cursor/Caret
+                try { moved(hwnd); } catch (Exception ex) { Program.LogError(ex); }
+            };
+        }
+
+        // an = Hook auf den aktuellen Explorer setzen (auch nach einem Explorer-Neustart), aus = entfernen
+        public void Watch(bool on)
+        {
+            uint cur = 0;
+            if (on)
+            {
+                IntPtr tb = Native.FindWindowEx(IntPtr.Zero, IntPtr.Zero, "Shell_TrayWnd", null);
+                if (tb != IntPtr.Zero) Native.GetWindowThreadProcessId(tb, out cur);
+            }
+            if (cur == pid && (hook != IntPtr.Zero) == (cur != 0)) return;
+            if (hook != IntPtr.Zero) { Native.UnhookWinEvent(hook); hook = IntPtr.Zero; }
+            pid = cur;
+            if (cur != 0) hook = Native.SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, cb, cur, 0, WINEVENT_OUTOFCONTEXT);
         }
     }
 
