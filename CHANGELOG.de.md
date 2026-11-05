@@ -1,5 +1,18 @@
 # Changelog – Akku-Anzeige
 
+## 1.2.0.4 Alpha – 05.11.2026
+- Neu: „Bug melden“ unter Einstellungen → Info – mit Kurzbeschreibung, Freitext, optionaler Kontaktangabe und Systeminfos (ohne Gerätenamen)
+  - „Privat senden“: geht direkt und nur an die Entwickler (Diabeetus & Bobohatt), kein GitHub-Konto nötig
+  - „Auf GitHub melden“: öffentliche Meldung mit eigenem GitHub-Konto
+  - „Pull Request erstellen“ und „Text kopieren“
+- © 2026 Bobohatt & Diabeetus
+- Behoben: Lücken in den Rahmen (z. B. bei „Alarm-Ton“) – Rahmen passen jetzt zum hellen und dunklen Design
+- Behoben: Bildreste beim Scrollen im Reiter „Einstellungen“
+- Behoben: Das Mausrad verstellte beim Scrollen Auswahlfelder und Regler (z. B. den Alarm-Sound) – es scrollt jetzt die Seite
+- Behoben: weißes Kästchen rechts oben in der Geräteliste
+- Behoben: helle Bildlaufleisten in Changelog-, Update- und Bug-Fenster
+- Behoben: „&“ wurde in Beschriftungen nicht angezeigt
+
 ## 1.2.0.3 Alpha – 05.11.2026
 Mit Beiträgen von garpu-ng (Pull Requests #1 und #2) – vielen Dank!
 - Neue eingebaute Gerätequellen ohne Hersteller-Software: Logitech direkt über den Empfänger (HID++), HyperX Cloud III S Wireless, PlayStation DualSense, AirPods/Beats (Bluetooth LE)

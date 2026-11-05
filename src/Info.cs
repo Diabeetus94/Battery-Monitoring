@@ -17,6 +17,7 @@ namespace AkkuAnzeige
         public const string Publisher = "Diabeetus";
         public const string PoweredBy = "Powered by Claude.ai";
         public const string Year = "2026";
+        public const string Copyright = "© 2026 Bobohatt & Diabeetus";
 
         // GitHub-Projekt im Format "besitzer/repo"
         public const string GitHubRepo = "Diabeetus94/Battery-Monitoring";
@@ -233,10 +234,10 @@ namespace AkkuAnzeige
             var lblName = new Label { Text = "Akku-Anzeige", Font = new Font("Segoe UI Semibold", 16f), Bounds = new Rectangle(98, 18, 440, 34) };
             var lblVer = new Label { Text = L.F("Version {0}", AppInfo.VersionText), Bounds = new Rectangle(100, 54, 440, 20) };
             var lblPub = new Label { Text = L.F("Hersteller: {0}", AppInfo.Publisher) + "   ·   " + AppInfo.PoweredBy, Bounds = new Rectangle(100, 76, 440, 20) };
-            var lblCopy = new Label { Text = "© " + AppInfo.Year + " " + AppInfo.Publisher, Bounds = new Rectangle(100, 98, 440, 20), ForeColor = Color.DimGray };
+            var lblCopy = new Label { Text = AppInfo.Copyright, Bounds = new Rectangle(100, 98, 440, 20), ForeColor = Color.DimGray };
             var lblDesc = new Label { Text = L.T("Akkustände von Maus, Tastatur, Kopfhörern und weiteren drahtlosen Geräten direkt auf der Taskleiste."), Bounds = new Rectangle(20, 132, 520, 36) };
 
-            var gSrc = new GroupBox { Text = L.T("Datenquellen") + " / " + L.T("Erkannte Hersteller-Software"), Bounds = new Rectangle(14, 172, 532, 240) };
+            var gSrc = new ThemedGroupBox { Text = L.T("Datenquellen") + " / " + L.T("Erkannte Hersteller-Software"), Bounds = new Rectangle(14, 172, 532, 240) };
             // einfache Zeilen statt ListView (zuverlaessig in hell und dunkel)
             var list = new Panel { Bounds = new Rectangle(10, 22, 512, 208), AutoScroll = true };
             bool en = L.Current == "en";

@@ -2,14 +2,14 @@
 
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
-> ⚠️ **Alpha-Version 1.2.0.3** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
+> ⚠️ **Alpha-Version 1.2.0.4** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
 
-### ⬇️ [Download: AkkuAnzeige-Setup-1.2.0.3-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
+### ⬇️ [Download: AkkuAnzeige-Setup-1.2.0.4-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
 *(Releases → neueste Version → Assets)*
 
 **Akku-Anzeige** zeigt die Akkustände deiner drahtlosen Geräte – Maus, Tastatur, Kopfhörer, Lautsprecher, Controller … – als kleine Kacheln **direkt auf der Windows-Taskleiste**. Kein Öffnen von Hersteller-Apps mehr, kein Suchen im Infobereich: Du siehst jederzeit auf einen Blick, wie voll deine Akkus sind, und wirst rechtzeitig gewarnt, bevor einer leer ist.
 
-**Hersteller:** Diabeetus · © 2026 · *Powered by Claude.ai*
+**Hersteller:** Diabeetus · © 2026 Bobohatt & Diabeetus · *Powered by Claude.ai*
 
 ![Kacheln auf der Taskleiste](docs/screenshots/taskbar_main.png)
 
@@ -153,6 +153,7 @@ Die Warnung läuft **nicht** über das Windows-Benachrichtigungssystem und kommt
 - Version, Hersteller, Datenquellen und erkannte Treiber-Software
 - **Nach Updates suchen** – findet neue Versionen; **Update installieren** lädt sie direkt in der App herunter, prüft sie (Signatur + Prüfsumme) und installiert sie – ohne Browser
 - **Changelog** – zeigt alle Änderungen direkt in der App (auch als [CHANGELOG.de.md](CHANGELOG.de.md))
+- **Bug melden** – Fehler privat an die Entwickler senden (ohne GitHub-Konto) oder öffentlich als GitHub-Issue
 - **Website öffnen** – öffnet diese Seite
 
 ---
@@ -241,4 +242,4 @@ Das Skript kompiliert App und Setup, signiert beide mit dem lokalen Zertifikat �
 
 ---
 
-<sub>Akku-Anzeige · Diabeetus · © 2026 · Powered by Claude.ai</sub>
+<sub>Akku-Anzeige · © 2026 Bobohatt & Diabeetus · Powered by Claude.ai</sub>

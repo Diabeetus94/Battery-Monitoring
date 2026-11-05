@@ -2,14 +2,14 @@
 
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
-> ⚠️ **Alpha version 1.2.0.3** – the program is still being tested. Please report bugs as an *Issue*.
+> ⚠️ **Alpha version 1.2.0.4** – the program is still being tested. Please report bugs as an *Issue*.
 
-### ⬇️ [Download: AkkuAnzeige-Setup-1.2.0.3-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
+### ⬇️ [Download: AkkuAnzeige-Setup-1.2.0.4-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
 *(Releases → latest version → Assets)*
 
 **Akku-Anzeige** ("Battery Display") shows the battery levels of your wireless devices – mouse, keyboard, headphones, speakers, controllers … – as small tiles **right on the Windows taskbar**. No more opening vendor apps or digging through the notification area: you always see at a glance how full your batteries are, and you get warned before one runs empty.
 
-**Publisher:** Diabeetus · © 2026 · *Powered by Claude.ai*
+**Publisher:** Diabeetus · © 2026 Bobohatt & Diabeetus · *Powered by Claude.ai*
 
 ![Tiles on the taskbar](docs/screenshots/taskbar_main.png)
 
@@ -153,6 +153,7 @@ Via **ⓘ About** in the settings window (or right-click → *About*):
 - Version, publisher, data sources and detected driver software
 - **Check for updates** – finds new versions; **Install update** downloads, verifies (signature + checksum) and installs them right inside the app – no browser needed
 - **Changelog** – shows all changes directly in the app (also available as [CHANGELOG.md](CHANGELOG.md))
+- **Report a bug** – send a report privately to the developers (no GitHub account needed) or publicly as a GitHub issue
 - **Open website** – opens this page
 
 ---
@@ -241,4 +242,4 @@ The script compiles the app and the setup, signs both with the local certificate
 
 ---
 
-<sub>Akku-Anzeige · Diabeetus · © 2026 · Powered by Claude.ai</sub>
+<sub>Akku-Anzeige · © 2026 Bobohatt & Diabeetus · Powered by Claude.ai</sub>

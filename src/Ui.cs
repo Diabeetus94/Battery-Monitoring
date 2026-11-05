@@ -1297,6 +1297,7 @@ namespace AkkuAnzeige
                 else if (ch is GroupBox) { ch.ForeColor = Fore(d); }
                 else if (ch is Label)
                 {
+                    ((Label)ch).UseMnemonic = false; // "&" als Zeichen anzeigen (z. B. "Bobohatt & Diabeetus")
                     if (ch.Tag == null) ch.Tag = ch.ForeColor == Color.DimGray ? "dim" : "fg";
                     string t = ch.Tag as string;
                     if (t == "dim") ch.ForeColor = Dim(d);
@@ -1320,7 +1321,16 @@ namespace AkkuAnzeige
                     cb.Invalidate();
                 }
                 else if (ch is NumericUpDown) { ch.BackColor = d ? Input(d) : SystemColors.Window; ch.ForeColor = d ? Fore(d) : SystemColors.WindowText; }
-                else if (ch is TextBox) { ch.BackColor = d ? Input(d) : SystemColors.Window; ch.ForeColor = d ? Fore(d) : SystemColors.WindowText; }
+                else if (ch is TextBox)
+                {
+                    ch.BackColor = d ? Input(d) : SystemColors.Window; ch.ForeColor = d ? Fore(d) : SystemColors.WindowText;
+                    if (((TextBox)ch).Multiline) // Bildlaufleiste im passenden Design
+                    {
+                        listDark[ch] = d;
+                        if (ch.IsHandleCreated) ApplyListTheme(ch);
+                        else if (listHooked.Add(ch)) ch.HandleCreated += (s, e) => ApplyListTheme((Control)s);
+                    }
+                }
                 else if (ch is ListView)
                 {
                     ch.BackColor = d ? Color.FromArgb(38, 38, 38) : SystemColors.Window;
@@ -1360,6 +1370,8 @@ namespace AkkuAnzeige
             };
         }
 
+        public static Color BorderFor(Control c) { return Border(c.BackColor.GetBrightness() < 0.5f || (c.Parent != null && c.Parent.BackColor.GetBrightness() < 0.5f)); }
+
         static readonly Dictionary<Control, bool> listDark = new Dictionary<Control, bool>();
         static readonly HashSet<Control> listHooked = new HashSet<Control>();
         static void ApplyListTheme(Control c)
@@ -1373,6 +1385,19 @@ namespace AkkuAnzeige
         public static void OwnerDrawHeader(ListView lv)
         {
             lv.OwnerDraw = true;
+            // letzte Spalte bis zum rechten Rand – sonst bleibt rechts im Spaltenkopf ein weisses Kaestchen
+            EventHandler fill = (s, e) =>
+            {
+                if (lv.Columns.Count == 0 || !lv.IsHandleCreated) return;
+                int used = 0;
+                for (int i = 0; i < lv.Columns.Count - 1; i++) used += lv.Columns[i].Width;
+                int w = lv.ClientSize.Width - used;
+                var last = lv.Columns[lv.Columns.Count - 1];
+                if (w > 40 && last.Width != w) last.Width = w;
+            };
+            lv.HandleCreated += fill;
+            lv.Resize += fill;
+            lv.Layout += (s, e) => fill(s, e);
             lv.DrawItem += (s, e) => { };
             // Zeilen selbst zeichnen: Schrift bleibt auch bei markierter Zeile gut lesbar (dunkel: weiss)
             lv.DrawSubItem += (s, e) =>
@@ -1409,6 +1434,109 @@ namespace AkkuAnzeige
                 var r = new Rectangle(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width - 8, e.Bounds.Height);
                 TextRenderer.DrawText(e.Graphics, e.Header.Text, lv.Font, r, Fore(d), TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
             };
+        }
+    }
+
+    // ======================= Scrollbare Seite ohne Zeichenfehler =======================
+    class ScrollPage : Panel
+    {
+        readonly System.Windows.Forms.Timer watch = new System.Windows.Forms.Timer { Interval = 60 };
+        int lastY;
+
+        public ScrollPage()
+        {
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
+            // jede Aenderung der Scrollposition (Rad, Leiste, Tastatur, Fokus) -> komplett neu zeichnen
+            watch.Tick += delegate
+            {
+                int y = AutoScrollPosition.Y;
+                if (y != lastY) { lastY = y; Invalidate(true); Update(); }
+            };
+            VisibleChanged += delegate { if (Visible) watch.Start(); else watch.Stop(); };
+            Disposed += delegate { watch.Dispose(); };
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if (m.Msg == 0x0115 /*WM_VSCROLL*/ || m.Msg == 0x020A /*WM_MOUSEWHEEL*/) { lastY = AutoScrollPosition.Y; Invalidate(true); }
+        }
+
+        // ganze Seite samt Inhalt in einem Durchgang zeichnen (keine verschobenen Bildreste beim Scrollen)
+        protected override CreateParams CreateParams
+        {
+            get { var cp = base.CreateParams; cp.ExStyle |= 0x02000000; /*WS_EX_COMPOSITED*/ return cp; }
+        }
+
+        // Mausrad ueber Auswahlfeldern/Reglern scrollt die Seite statt den Wert zu verstellen
+        // (ausser das Feld wurde angeklickt bzw. die Auswahlliste ist aufgeklappt)
+        protected override void OnControlAdded(ControlEventArgs e) { base.OnControlAdded(e); HookWheel(e.Control); }
+
+        void HookWheel(Control c)
+        {
+            if (c is ComboBox || c is TrackBar || c is NumericUpDown)
+                c.MouseWheel += (s, e) =>
+                {
+                    var cb = s as ComboBox;
+                    if ((cb != null && cb.DroppedDown) || ((Control)s).Focused) return;
+                    var he = e as HandledMouseEventArgs;
+                    if (he != null) he.Handled = true;
+                    ScrollBy(-e.Delta);
+                };
+            foreach (Control ch in c.Controls) HookWheel(ch);
+            c.ControlAdded += (s, e) => HookWheel(e.Control);
+        }
+
+        void ScrollBy(int delta)
+        {
+            int y = -AutoScrollPosition.Y + delta * SystemInformation.MouseWheelScrollLines * 16 / 120;
+            AutoScrollPosition = new Point(0, Math.Max(0, y));
+            lastY = AutoScrollPosition.Y;
+            Invalidate(true);
+        }
+    }
+
+    // ======================= Gruppenrahmen (selbst gezeichnet) =======================
+    // Der Windows-Rahmen ist im dunklen Design hellgrau und bekommt beim Scrollen Luecken.
+    class ThemedGroupBox : GroupBox
+    {
+        public ThemedGroupBox()
+        {
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        }
+
+        // GroupBox ist in Windows "durchsichtig" (WS_EX_TRANSPARENT) -> beim Scrollen bleiben Bildreste stehen
+        protected override CreateParams CreateParams
+        {
+            get { var cp = base.CreateParams; cp.ExStyle &= ~0x20; return cp; }
+        }
+
+        // Elemente, die ueber den rechten Rand ragen, wuerden den Rahmen uebermalen -> kuerzen
+        protected override void OnLayout(LayoutEventArgs e)
+        {
+            base.OnLayout(e);
+            int max = Width - 3;
+            foreach (Control c in Controls)
+                if (c.Right > max && c.Left < max) c.Width = Math.Max(10, max - c.Left);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            using (var bg = new SolidBrush(BackColor)) g.FillRectangle(bg, ClientRectangle);
+            var ts = TextRenderer.MeasureText(Text, Font);
+            int top = ts.Height / 2;
+            using (var pen = new Pen(Theme.BorderFor(this)))
+            {
+                var r = new Rectangle(0, top, Width - 1, Height - top - 1);
+                g.DrawRectangle(pen, r);
+            }
+            if (!string.IsNullOrEmpty(Text))
+            {
+                var tr = new Rectangle(8, 0, ts.Width + 2, ts.Height);
+                using (var bg = new SolidBrush(BackColor)) g.FillRectangle(bg, tr);
+                TextRenderer.DrawText(g, Text, Font, tr, ForeColor, TextFormatFlags.Left | TextFormatFlags.NoPadding);
+            }
         }
     }
 
@@ -1691,7 +1819,7 @@ namespace AkkuAnzeige
             trkSize = new TrackBar { Minimum = 50, Maximum = 200, TickFrequency = 10, SmallChange = 5, LargeChange = 10, Bounds = new Rectangle(12, 90, 430, 45), Value = Math.Max(50, Math.Min(200, entry.Size)) };
             var lblSizeHint = new Label { Text = L.T("Die Höhe passt sich immer der Taskleiste an – der Regler ändert nur die Breite."), Bounds = new Rectangle(12, 134, 610, 18), ForeColor = Color.DimGray };
 
-            var gDev = new GroupBox { Text = L.T("Geräte auf diesem Monitor"), Bounds = new Rectangle(8, 160, 624, 376) };
+            var gDev = new ThemedGroupBox { Text = L.T("Geräte auf diesem Monitor"), Bounds = new Rectangle(8, 160, 624, 376) };
             var lblHint = new Label { Text = L.T("Angehakte Geräte werden als Kachel angezeigt – in der Reihenfolge der Liste (Zeilen mit der Maus ziehen)."), Bounds = new Rectangle(12, 22, 600, 18) };
             lv = new ListView { View = View.Details, CheckBoxes = true, FullRowSelect = true, HideSelection = false, MultiSelect = false, Bounds = new Rectangle(12, 44, 480, 280) };
             lv.Columns.Add(L.T("Anzeigename"), 130);
@@ -1951,7 +2079,7 @@ namespace AkkuAnzeige
 
             // --- Grenzwerte ---
             var gen = new Panel { Text = L.T("Grenzwerte") };
-            var gAlarm = new GroupBox { Text = L.T("Alarm (gilt für alle Monitore)"), Bounds = new Rectangle(8, 10, 624, 100) };
+            var gAlarm = new ThemedGroupBox { Text = L.T("Alarm (gilt für alle Monitore)"), Bounds = new Rectangle(8, 10, 624, 100) };
             trk = new TrackBar { Minimum = 5, Maximum = 50, TickFrequency = 5, SmallChange = 1, LargeChange = 5, Bounds = new Rectangle(12, 24, 440, 45), Value = Math.Max(5, Math.Min(50, ctx.Settings.WarnLevel)) };
             lblTrk = new Label { Bounds = new Rectangle(18, 70, 430, 20) };
             trk.ValueChanged += delegate { UpdateTrkLabel(); LimitsChanged(); };
@@ -1965,7 +2093,7 @@ namespace AkkuAnzeige
             gAlarm.Controls.AddRange(new Control[] { trk, lblTrk, btnTest });
 
             // Farbbereiche: eine Linie mit Rot | Orange | Gruen und zwei Griffen
-            var gCol = new GroupBox { Text = L.T("Farbbereiche (gilt für alle Monitore)"), Bounds = new Rectangle(8, 120, 624, 164) };
+            var gCol = new ThemedGroupBox { Text = L.T("Farbbereiche (gilt für alle Monitore)"), Bounds = new Rectangle(8, 120, 624, 164) };
             colBar = new ColorRangeBar { Bounds = new Rectangle(12, 24, 600, 50) };
             colBar.OrangeFrom = ctx.Settings.OrangeFrom;
             colBar.GreenFrom = ctx.Settings.GreenFrom;
@@ -2027,8 +2155,8 @@ namespace AkkuAnzeige
             tabs.AddPage(gen);
 
             // --- Einstellungen (Programm + Darstellung) ---
-            var opt = new Panel { Text = L.T("Einstellungen"), AutoScroll = true }; // scrollbar – Platz fuer weitere Bereiche
-            var gProg = new GroupBox { Text = L.T("Programm"), Bounds = new Rectangle(8, 10, 608, 128) };
+            var opt = new ScrollPage { Text = L.T("Einstellungen"), AutoScroll = true }; // scrollbar – Platz fuer weitere Bereiche
+            var gProg = new ThemedGroupBox { Text = L.T("Programm"), Bounds = new Rectangle(8, 10, 608, 128) };
             chkAuto = new CheckBox { Text = L.T("Mit Windows starten"), Bounds = new Rectangle(12, 24, 400, 24), Checked = AppCtx.AutostartEnabled };
             chkMin = new CheckBox { Text = L.T("Minimiert starten (nur die Kacheln, ohne dieses Fenster)"), Bounds = new Rectangle(12, 52, 500, 24), Checked = ctx.Settings.StartMinimized };
             var lblClose = new Label { Text = L.T("Beim Schließen des Fensters (X):"), Bounds = new Rectangle(14, 90, 200, 20) };
@@ -2037,7 +2165,7 @@ namespace AkkuAnzeige
             cmbClose.SelectedIndex = ctx.Settings.CloseExits ? 1 : 0;
             gProg.Controls.AddRange(new Control[] { chkAuto, chkMin, lblClose, cmbClose });
 
-            var gTheme = new GroupBox { Text = L.T("Darstellung"), Bounds = new Rectangle(8, 148, 608, 134) };
+            var gTheme = new ThemedGroupBox { Text = L.T("Darstellung"), Bounds = new Rectangle(8, 148, 608, 134) };
             var lblLang = new Label { Text = L.T("Sprache:"), Bounds = new Rectangle(14, 100, 200, 20) };
             cmbLang = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Bounds = new Rectangle(224, 96, 140, 24) };
             foreach (var kv in L.Languages) cmbLang.Items.Add(kv.Value);
@@ -2053,7 +2181,7 @@ namespace AkkuAnzeige
             cmbTheme.SelectedIndexChanged += delegate { ApplyTheme(); };
 
             // Alarm-Ton: Lautstaerke + eigene Sounddatei
-            var gSound = new GroupBox { Text = L.T("Alarm-Ton"), Bounds = new Rectangle(8, 292, 608, 152) };
+            var gSound = new ThemedGroupBox { Text = L.T("Alarm-Ton"), Bounds = new Rectangle(8, 292, 608, 152) };
             lblVol = new Label { Bounds = new Rectangle(14, 24, 400, 20) };
             trkVol = new TrackBar { Minimum = 0, Maximum = 100, TickFrequency = 10, SmallChange = 5, LargeChange = 10, Bounds = new Rectangle(12, 44, 440, 45), Value = Math.Max(0, Math.Min(100, ctx.Settings.AlarmVolume)) };
             trkVol.ValueChanged += delegate { UpdateVolLabel(); };
@@ -2089,7 +2217,7 @@ namespace AkkuAnzeige
 
             // Datenquellen: welche (kompatiblen, installierten) Programme mit der Akku-Anzeige verknuepft sind.
             // "Treiber & Geräte suchen" erkennt nachtraeglich installierte Software und angeschlossene Hardware.
-            gSrc = new GroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 608, 118) };
+            gSrc = new ThemedGroupBox { Text = L.T("Datenquellen (verknüpfte Treiber-Software)"), Bounds = new Rectangle(8, 454, 608, 118) };
             lblSrcHint = new Label { Text = L.T("Nicht kompatible oder nicht installierte Programme erscheinen hier nicht."), Bounds = new Rectangle(14, 96, 430, 18), ForeColor = Color.DimGray, AutoEllipsis = true };
             btnScan = new Button { Text = L.T("Treiber && Geräte suchen"), Bounds = new Rectangle(450, 90, 146, 26) };
             btnScan.Click += delegate { ScanSources(); };
@@ -2097,13 +2225,13 @@ namespace AkkuAnzeige
             gSrc.Controls.Add(btnScan);
             BuildSources(null);
             // Info: Version, Hersteller, Update-Suche (frueher eigenes Fenster)
-            gInfo = new GroupBox { Text = L.T("Info"), Bounds = new Rectangle(8, 576, 608, 176) };
+            gInfo = new ThemedGroupBox { Text = L.T("Info"), Bounds = new Rectangle(8, 576, 608, 176) };
             var pic = new PictureBox { Bounds = new Rectangle(14, 26, 56, 56), SizeMode = PictureBoxSizeMode.Zoom };
             var icoBytes = IconTools.Resource("AkkuAnzeige.win.ico");
             if (icoBytes != null) pic.Image = IconTools.FromIco(icoBytes, 56);
             var lblApp = new Label { Text = "Akku-Anzeige", Font = new Font("Segoe UI Semibold", 13f), Bounds = new Rectangle(82, 22, 500, 26) };
             var lblVer = new Label { Text = L.F("Version {0}", AppInfo.VersionText) + "   ·   " + L.F("Hersteller: {0}", AppInfo.Publisher), Bounds = new Rectangle(84, 50, 510, 18) };
-            var lblPow = new Label { Text = "© " + AppInfo.Year + " " + AppInfo.Publisher + "   ·   " + AppInfo.PoweredBy, Bounds = new Rectangle(84, 70, 510, 18), ForeColor = Color.DimGray };
+            var lblPow = new Label { Text = AppInfo.Copyright + "   ·   " + AppInfo.PoweredBy, Bounds = new Rectangle(84, 70, 510, 18), ForeColor = Color.DimGray };
             var btnUpd = new Button { Text = L.T("Nach Updates suchen"), Bounds = new Rectangle(14, 96, 170, 30) };
             var btnWeb = new Button { Text = L.T("Website öffnen"), Bounds = new Rectangle(190, 96, 150, 30) };
             var lblUpd = new Label { Bounds = new Rectangle(14, 132, 584, 36) };
@@ -2111,7 +2239,9 @@ namespace AkkuAnzeige
             btnUpd.Click += delegate { UpdateUi.Check(this, btnUpd, lblUpd, ctx.WindowIcon, DarkWanted(), ctx.BeginQuit); };
             btnWeb.Click += delegate { UpdateUi.OpenWebsite(lblUpd); };
             btnLog.Click += delegate { using (var f = new ChangelogForm(ctx.WindowIcon, DarkWanted())) f.ShowDialog(this); };
-            gInfo.Controls.AddRange(new Control[] { pic, lblApp, lblVer, lblPow, btnUpd, btnWeb, btnLog, lblUpd });
+            var btnBug = new Button { Text = "🐞 " + L.T("Bug melden"), Bounds = new Rectangle(482, 96, 112, 30) };
+            btnBug.Click += delegate { using (var f = new BugReportForm(ctx, ctx.WindowIcon, DarkWanted())) f.ShowDialog(this); };
+            gInfo.Controls.AddRange(new Control[] { pic, lblApp, lblVer, lblPow, btnUpd, btnWeb, btnLog, btnBug, lblUpd });
             var spacer = new Label { Bounds = new Rectangle(8, 752, 10, 12) }; // etwas Abstand unten beim Scrollen
 
             opt.Controls.AddRange(new Control[] { gProg, gTheme, gSound, gSrc, gInfo, spacer });

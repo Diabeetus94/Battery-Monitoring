@@ -247,7 +247,7 @@ namespace AkkuAnzeige
             var pic = new PictureBox { Bounds = new Rectangle(18, 14, 56, 56), SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Transparent };
             try { pic.Image = new Icon(Icon, 64, 64).ToBitmap(); } catch { }
             var lblT = new Label { Text = "Akku-Anzeige " + SetupProgram.Version, ForeColor = Color.White, Font = new Font("Segoe UI Semibold", 15f), Bounds = new Rectangle(88, 14, 500, 32), BackColor = Color.Transparent };
-            var lblS = new Label { Text = "Diabeetus · © 2026 · Powered by Claude.ai", ForeColor = Color.Silver, Bounds = new Rectangle(90, 50, 500, 20), BackColor = Color.Transparent };
+            var lblS = new Label { Text = "© 2026 Bobohatt & Diabeetus · Powered by Claude.ai", ForeColor = Color.Silver, Bounds = new Rectangle(90, 50, 500, 20), BackColor = Color.Transparent, UseMnemonic = false };
             header.Controls.AddRange(new Control[] { pic, lblT, lblS });
 
             var lblIntro = new Label

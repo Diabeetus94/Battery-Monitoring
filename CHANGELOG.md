@@ -1,5 +1,18 @@
 # Changelog – Akku-Anzeige (Battery Display)
 
+## 1.2.0.4 Alpha – 2026-11-05
+- New: "Report a bug" under Settings → About – with short description, free text, optional contact and system info (without device names)
+  - "Send privately": goes directly and only to the developers (Diabeetus & Bobohatt), no GitHub account needed
+  - "Report on GitHub": public report with your own GitHub account
+  - "Create pull request" and "Copy text"
+- © 2026 Bobohatt & Diabeetus
+- Fixed: gaps in the group borders (e.g. "Alarm sound") – borders now match the light and dark design
+- Fixed: leftover image fragments when scrolling the "Settings" tab
+- Fixed: the mouse wheel changed drop-down fields and sliders (e.g. the alarm sound) while scrolling – it now scrolls the page
+- Fixed: white box at the top right of the device list
+- Fixed: light scrollbars in the changelog, update and bug windows
+- Fixed: "&" was not shown in labels
+
 ## 1.2.0.3 Alpha – 2026-11-05
 With contributions from garpu-ng (pull requests #1 and #2) – thank you!
 - New built-in device sources without vendor software: Logitech directly via the receiver (HID++), HyperX Cloud III S Wireless, PlayStation DualSense, AirPods/Beats (Bluetooth LE)
