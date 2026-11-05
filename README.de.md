@@ -153,7 +153,7 @@ Die Warnung läuft **nicht** über das Windows-Benachrichtigungssystem und kommt
 - Version, Hersteller, Datenquellen und erkannte Treiber-Software
 - **Nach Updates suchen** – findet neue Versionen; **Update installieren** lädt sie direkt in der App herunter, prüft sie (Signatur + Prüfsumme) und installiert sie – ohne Browser
 - **Changelog** – zeigt alle Änderungen direkt in der App (auch als [CHANGELOG.de.md](CHANGELOG.de.md))
-- **Bug melden** – Fehler privat an die Entwickler senden (ohne GitHub-Konto) oder öffentlich als GitHub-Issue
+- **Bug melden** – öffnet GitHub, um ein Issue oder einen Pull Request zu erstellen
 - **Website öffnen** – öffnet diese Seite
 
 ---

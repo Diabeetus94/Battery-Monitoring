@@ -50,19 +50,6 @@ $langKeys = [regex]::Matches((Get-Content "$src\Lang.cs" -Raw -Encoding UTF8), '
 $dup = $langKeys | Group-Object | Where-Object Count -gt 1
 if ($dup) { throw "Doppelte Uebersetzungen in Lang.cs: " + (($dup | ForEach-Object Name) -join ', ') }
 
-# ---- Zugangsschluessel fuer "Privat senden" (nur lokal, nie im Quellcode/Repository) ----
-# feedback.token (gitignored) -> verschleiert als src\feedback.bin in die exe; ohne Datei ist "Privat senden" aus
-$fbToken = Join-Path $out 'feedback.token'
-$fbBin = Join-Path $src 'feedback.bin'
-$fbBytes = [byte[]]@()
-if (Test-Path $fbToken) {
-    $fbKey = [Text.Encoding]::ASCII.GetBytes('AkkuAnzeige-Diabeetus-Bobohatt')
-    $fbBytes = [Text.Encoding]::ASCII.GetBytes((Get-Content $fbToken -Raw).Trim())
-    for ($i = 0; $i -lt $fbBytes.Length; $i++) { $fbBytes[$i] = $fbBytes[$i] -bxor $fbKey[$i % $fbKey.Length] }
-    "Privat senden: Schluessel eingebaut"
-} else { "Privat senden: kein Schluessel (feedback.token fehlt) - Funktion deaktiviert" }
-[IO.File]::WriteAllBytes($fbBin, $fbBytes)
-
 $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 # WinRT (Bluetooth-LE-Scanner fuer AirPods): Windows-Metadaten + WinRT-Bruecke des .NET Framework
 $fw = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319"
@@ -75,7 +62,6 @@ $winrt = @(
 & $csc /nologo /target:winexe /codepage:65001 /optimize+ /debug:pdbonly /platform:anycpu `
     "/win32icon:$src\app.ico" "/resource:$src\app.ico,AkkuAnzeige.app.ico" "/resource:$src\win.ico,AkkuAnzeige.win.ico" `
     "/resource:$out\CHANGELOG.md,AkkuAnzeige.CHANGELOG.md" "/resource:$out\CHANGELOG.de.md,AkkuAnzeige.CHANGELOG.de.md" `
-    "/resource:$fbBin,AkkuAnzeige.feedback.bin" `
     /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Core.dll /r:System.ServiceProcess.dll `
     "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\PresentationCore.dll" `
     "/r:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\WPF\WindowsBase.dll" `

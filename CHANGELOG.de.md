@@ -1,10 +1,7 @@
 # Changelog – Akku-Anzeige
 
 ## 1.2.0.4 Alpha – 05.11.2026
-- Neu: „Bug melden“ unter Einstellungen → Info – mit Kurzbeschreibung, Freitext, optionaler Kontaktangabe und Systeminfos (ohne Gerätenamen)
-  - „Privat senden“: geht direkt und nur an die Entwickler (Diabeetus & Bobohatt), kein GitHub-Konto nötig
-  - „Auf GitHub melden“: öffentliche Meldung mit eigenem GitHub-Konto
-  - „Pull Request erstellen“ und „Text kopieren“
+- Neu: „Bug melden“ unter Einstellungen → Info – führt direkt zu GitHub: „Issue erstellen“ (Fehler melden, Ideen) oder „Pull Request erstellen“ (Code-Änderung vorschlagen)
 - © 2026 Bobohatt & Diabeetus
 - Behoben: Lücken in den Rahmen (z. B. bei „Alarm-Ton“) – Rahmen passen jetzt zum hellen und dunklen Design
 - Behoben: Bildreste beim Scrollen im Reiter „Einstellungen“

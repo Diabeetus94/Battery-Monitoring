@@ -153,7 +153,7 @@ Via **ⓘ About** in the settings window (or right-click → *About*):
 - Version, publisher, data sources and detected driver software
 - **Check for updates** – finds new versions; **Install update** downloads, verifies (signature + checksum) and installs them right inside the app – no browser needed
 - **Changelog** – shows all changes directly in the app (also available as [CHANGELOG.md](CHANGELOG.md))
-- **Report a bug** – send a report privately to the developers (no GitHub account needed) or publicly as a GitHub issue
+- **Report a bug** – opens GitHub to create an issue or a pull request
 - **Open website** – opens this page
 
 ---

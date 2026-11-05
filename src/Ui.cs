@@ -2240,7 +2240,7 @@ namespace AkkuAnzeige
             btnWeb.Click += delegate { UpdateUi.OpenWebsite(lblUpd); };
             btnLog.Click += delegate { using (var f = new ChangelogForm(ctx.WindowIcon, DarkWanted())) f.ShowDialog(this); };
             var btnBug = new Button { Text = "🐞 " + L.T("Bug melden"), Bounds = new Rectangle(482, 96, 112, 30) };
-            btnBug.Click += delegate { using (var f = new BugReportForm(ctx, ctx.WindowIcon, DarkWanted())) f.ShowDialog(this); };
+            btnBug.Click += delegate { using (var f = new BugReportForm(ctx.WindowIcon, DarkWanted())) f.ShowDialog(this); };
             gInfo.Controls.AddRange(new Control[] { pic, lblApp, lblVer, lblPow, btnUpd, btnWeb, btnLog, btnBug, lblUpd });
             var spacer = new Label { Bounds = new Rectangle(8, 752, 10, 12) }; // etwas Abstand unten beim Scrollen
 

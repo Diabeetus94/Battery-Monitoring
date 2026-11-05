@@ -16,6 +16,3 @@ docs/shot_helper.ps1
 # fertige Setups fuer Veroeffentlichungen
 release/
 
-# Zugangsschluessel fuer "Privat senden" (nie hochladen!)
-feedback.token
-src/feedback.bin
