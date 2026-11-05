@@ -1,0 +1,11 @@
+# Build-Ergebnisse (kommen als Release-Datei, nicht ins Repository)
+*.exe
+*.pdb
+Setup/
+cert/
+AkkuAnzeige.ico
+AkkuAnzeige-Desktop.ico
+
+# Sicherungen
+*.bak
+*.bak2
