@@ -234,7 +234,9 @@ namespace AkkuAnzeige
             pollTimer.Start();
 
             keepTimer = new System.Windows.Forms.Timer();
-            keepTimer.Interval = 300; // schnell wieder in den Vordergrund, falls die Taskleiste sich darueberlegt
+            // nur noch Sicherheitsnetz: Fensterwechsel (Vollbild-Spiel, Klick auf die Taskleiste) und Taskleisten-
+            // Bewegungen kommen sofort ueber TaskbarHook; frueher 300 ms
+            keepTimer.Interval = 1000;
             keepTimer.Tick += delegate { Keep(); };
             keepTimer.Start();
 
@@ -626,7 +628,10 @@ namespace AkkuAnzeige
             if (fg != IntPtr.Zero && !bars.Any(b => b.Handle == fg))
             {
                 // Startmenue, Infobereich, Schnelleinstellungen usw. sind KEIN Vollbild-Spiel
-                if (!Native.IsShellWindow(fg) && Native.ProcessNameOf(fg) != System.Diagnostics.Process.GetCurrentProcess().ProcessName)
+                // eigenes Fenster per Prozess-ID erkennen: Process.GetCurrentProcess().ProcessName zaehlt unter dem
+                // .NET Framework bei jedem Aufruf alle Prozesse auf (gemessen 2,3 ms CPU – alle 300 ms der Grossteil
+                // der Leerlauf-Last)
+                if (!Native.IsOwnWindow(fg) && !Native.IsShellWindow(fg))
                 {
                     Native.RECT r;
                     Native.GetWindowRect(fg, out r);
@@ -663,7 +668,9 @@ namespace AkkuAnzeige
         {
             bool hide = b.ScreenName == fullScreen || b.OffScreen;
             b.SetShown(!hide);
-            if (!hide) Native.SetWindowPos(b.Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0013); // TOPMOST, NOSIZE|NOMOVE|NOACTIVATE
+            // nur hochlegen, wenn wirklich ein sichtbares Fenster darueberliegt (SetWindowPos kostet sonst bei jedem
+            // Durchlauf ~0,2 ms fuer nichts)
+            if (!hide && Native.IsCovered(b.Handle)) Native.SetWindowPos(b.Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0013); // TOPMOST, NOSIZE|NOMOVE|NOACTIVATE
         }
 
         // Leiste hat sich selbst bewegt (Gleiten nach dem Verlassen mit der Maus)
@@ -681,9 +688,9 @@ namespace AkkuAnzeige
 
         void OnForeground(IntPtr hwnd)
         {
+            Keep(); // Vollbild-Erkennung + Hochlegen sofort beim Fensterwechsel statt erst beim naechsten Timer
             string cls = Native.ClassOf(hwnd);
             if (cls != "Shell_TrayWnd" && cls != "Shell_SecondaryTrayWnd") return;
-            foreach (var b in bars) if (!b.Embedded) ShowOnTop(b);
             guardUntil = Environment.TickCount + 200;
             if (guard != null && guard.IsAlive) return;
             var handles = bars.Where(b => !b.Embedded && b.Visible).Select(b => b.Handle).ToArray();

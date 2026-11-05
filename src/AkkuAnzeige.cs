@@ -109,6 +109,24 @@ namespace AkkuAnzeige
         [DllImport("winmm.dll")] public static extern uint timeBeginPeriod(uint ms);
         [DllImport("winmm.dll")] public static extern uint timeEndPeriod(uint ms);
 
+        static readonly uint ownPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+        public static bool IsOwnWindow(IntPtr h) { uint pid; GetWindowThreadProcessId(h, out pid); return pid == ownPid; }
+
+        // liegt ein sichtbares fremdes Fenster ueber h, das h ueberlappt?
+        public static bool IsCovered(IntPtr h)
+        {
+            RECT me;
+            if (!GetWindowRect(h, out me)) return false;
+            int n = 0;
+            for (IntPtr w = GetWindow(h, 3 /*GW_HWNDPREV*/); w != IntPtr.Zero && n < 500; w = GetWindow(w, 3), n++)
+            {
+                RECT r;
+                if (!IsWindowVisible(w) || !GetWindowRect(w, out r)) continue;
+                if (r.Left < me.Right && r.Right > me.Left && r.Top < me.Bottom && r.Bottom > me.Top) return true;
+            }
+            return false;
+        }
+
         // liegt ein Taskleistenfenster in der Z-Reihenfolge ueber h?
         public static bool CoveredByTopmost(IntPtr h)
         {
