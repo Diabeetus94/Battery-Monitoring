@@ -105,6 +105,21 @@ namespace AkkuAnzeige
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string title);
         [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
         [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr h);
+        [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h, uint cmd);
+        [DllImport("winmm.dll")] public static extern uint timeBeginPeriod(uint ms);
+        [DllImport("winmm.dll")] public static extern uint timeEndPeriod(uint ms);
+
+        // liegt ein Taskleistenfenster in der Z-Reihenfolge ueber h?
+        public static bool CoveredByTopmost(IntPtr h)
+        {
+            int n = 0;
+            for (IntPtr w = GetWindow(h, 3 /*GW_HWNDPREV*/); w != IntPtr.Zero && n < 200; w = GetWindow(w, 3), n++)
+            {
+                string c = ClassOf(w);
+                if (c == "Shell_TrayWnd" || c == "Shell_SecondaryTrayWnd") return true;
+            }
+            return false;
+        }
         [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
 
         public delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
@@ -134,21 +149,30 @@ namespace AkkuAnzeige
     // schrittweise (~15-30 ms je Schritt) und meldet jeden Schritt als EVENT_OBJECT_LOCATIONCHANGE.
     // Wir haengen uns an genau diese Meldung (nur fuer den Explorer-Prozess) – kein Abfrage-Timer,
     // im Ruhezustand also keinerlei CPU-Last, und die Kacheln bewegen sich im selben Takt wie die Taskleiste.
+    //
+    // Zweiter Hook: EVENT_SYSTEM_FOREGROUND (feuert nur bei Fensterwechseln). Ein Klick auf die Taskleiste
+    // macht sie zum Vordergrundfenster, und sie legt sich dabei ueber die Kacheln – siehe AppCtx.OnForeground.
     class TaskbarHook
     {
-        const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B, WINEVENT_OUTOFCONTEXT = 0;
-        readonly Native.WinEventProc cb; // Referenz halten, sonst raeumt der GC den Callback weg
-        readonly Action<IntPtr> moved;
-        IntPtr hook = IntPtr.Zero;
+        const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B, EVENT_SYSTEM_FOREGROUND = 0x0003, WINEVENT_OUTOFCONTEXT = 0;
+        readonly Native.WinEventProc cb, fgCb; // Referenzen halten, sonst raeumt der GC die Callbacks weg
+        readonly Action<IntPtr> moved, foreground;
+        IntPtr hook = IntPtr.Zero, fgHook = IntPtr.Zero;
         uint pid;
 
-        public TaskbarHook(Action<IntPtr> onTaskbarMoved)
+        public TaskbarHook(Action<IntPtr> onTaskbarMoved, Action<IntPtr> onForeground)
         {
             moved = onTaskbarMoved;
+            foreground = onForeground;
             cb = (h, ev, hwnd, idObject, idChild, thread, time) =>
             {
                 if (idObject != 0 || idChild != 0) return; // OBJID_WINDOW: nur das Fenster selbst, nicht Cursor/Caret
                 try { moved(hwnd); } catch (Exception ex) { Program.LogError(ex); }
+            };
+            fgCb = (h, ev, hwnd, idObject, idChild, thread, time) =>
+            {
+                if (idObject != 0 || idChild != 0) return;
+                try { foreground(hwnd); } catch (Exception ex) { Program.LogError(ex); }
             };
         }
 
@@ -161,6 +185,9 @@ namespace AkkuAnzeige
                 IntPtr tb = Native.FindWindowEx(IntPtr.Zero, IntPtr.Zero, "Shell_TrayWnd", null);
                 if (tb != IntPtr.Zero) Native.GetWindowThreadProcessId(tb, out cur);
             }
+            if (on && fgHook == IntPtr.Zero)
+                fgHook = Native.SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, fgCb, 0, 0, WINEVENT_OUTOFCONTEXT);
+            else if (!on && fgHook != IntPtr.Zero) { Native.UnhookWinEvent(fgHook); fgHook = IntPtr.Zero; }
             if (cur == pid && (hook != IntPtr.Zero) == (cur != 0)) return;
             if (hook != IntPtr.Zero) { Native.UnhookWinEvent(hook); hook = IntPtr.Zero; }
             pid = cur;

@@ -223,7 +223,7 @@ namespace AkkuAnzeige
             tray.Visible = true;
             tray.DoubleClick += delegate { ShowSettings(); };
 
-            taskbarHook = new TaskbarHook(OnTaskbarMoved);
+            taskbarHook = new TaskbarHook(OnTaskbarMoved, OnForeground);
             RebuildBars();
             SystemEvents.DisplaySettingsChanged += OnDisplayChanged;
             SystemEvents.UserPreferenceChanged += OnUserPrefChanged;
@@ -670,6 +670,43 @@ namespace AkkuAnzeige
         public void BarMoved(BarForm b) { ShowOnTop(b); }
 
         // Taskleiste hat sich bewegt (Ein-/Ausfahren bei automatischem Ausblenden): sofort mitziehen
+        // Taskleiste wird aktiviert (Klick darauf): sie schiebt sich dabei ueber alle Immer-im-Vordergrund-Fenster,
+        // auch ueber die Kacheln, bis Keep() sie nach bis zu 300 ms zurueckholt (= sichtbares Wegblinken).
+        // Jetzt: sofort wieder darueberlegen, und weil die Taskleiste sich manchmal erst kurz NACH dieser
+        // Meldung nach vorn schiebt, wacht 200 ms lang ein Hintergrund-Thread im 1-ms-Takt (ein Fenster-Timer
+        // waere mit ~16 ms zu grob). Gemessen: verdeckt nur noch 1-2 ms statt 60-330 ms. Laeuft nur nach
+        // einer Taskleisten-Aktivierung, sonst nie.
+        volatile int guardUntil; // wird vom Waechter-Thread gelesen
+        Thread guard;
+
+        void OnForeground(IntPtr hwnd)
+        {
+            string cls = Native.ClassOf(hwnd);
+            if (cls != "Shell_TrayWnd" && cls != "Shell_SecondaryTrayWnd") return;
+            foreach (var b in bars) if (!b.Embedded) ShowOnTop(b);
+            guardUntil = Environment.TickCount + 200;
+            if (guard != null && guard.IsAlive) return;
+            var handles = bars.Where(b => !b.Embedded && b.Visible).Select(b => b.Handle).ToArray();
+            guard = new Thread(() =>
+            {
+                Native.timeBeginPeriod(1);
+                try
+                {
+                    while (Environment.TickCount - guardUntil < 0)
+                    {
+                        foreach (var h in handles)
+                            if (Native.IsWindowVisible(h) && Native.CoveredByTopmost(h))
+                                Native.SetWindowPos(h, new IntPtr(-1), 0, 0, 0, 0, 0x0013); // TOPMOST, NOSIZE|NOMOVE|NOACTIVATE
+                        Thread.Sleep(1);
+                    }
+                }
+                catch { }
+                finally { Native.timeEndPeriod(1); }
+            });
+            guard.IsBackground = true;
+            guard.Start();
+        }
+
         void OnTaskbarMoved(IntPtr hwnd)
         {
             foreach (var b in bars)
@@ -728,6 +765,7 @@ namespace AkkuAnzeige
             SystemEvents.DisplaySettingsChanged -= OnDisplayChanged;
             SystemEvents.UserPreferenceChanged -= OnUserPrefChanged;
             pollTimer.Stop(); keepTimer.Stop();
+            guardUntil = Environment.TickCount;
             taskbarHook.Watch(false);
             tray.Visible = false; tray.Dispose();
             foreach (var b in bars) b.Close();
