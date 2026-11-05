@@ -1,223 +1,229 @@
+<p align="right"><b>🇬🇧 English</b> | <a href="README.de.md">🇩🇪 Deutsch</a></p>
+
 # 🔋 Battery-Monitoring (Akku-Anzeige)
 
-> ⚠️ **Alpha-Version 1.2.0** – das Programm ist noch in der Testphase. Fehler bitte als *Issue* melden.
+> ⚠️ **Alpha version 1.2.0** – the program is still being tested. Please report bugs as an *Issue*.
 
-**Akku-Anzeige** zeigt die Akkustände deiner drahtlosen Geräte – Maus, Tastatur, Kopfhörer, Lautsprecher, Controller … – als kleine Kacheln **direkt auf der Windows-Taskleiste**. Kein Öffnen von Hersteller-Apps mehr, kein Suchen im Infobereich: Du siehst jederzeit auf einen Blick, wie voll deine Akkus sind, und wirst rechtzeitig gewarnt, bevor einer leer ist.
+### ⬇️ [Download: AkkuAnzeige-Setup-1.2.0-alpha.exe](https://github.com/Diabeetus94/Battery-Monitoring/releases)
+*(Releases → latest version → Assets)*
 
-**Hersteller:** Diabeetus · © 2026 · *Powered by Claude.ai*
+**Akku-Anzeige** ("Battery Display") shows the battery levels of your wireless devices – mouse, keyboard, headphones, speakers, controllers … – as small tiles **right on the Windows taskbar**. No more opening vendor apps or digging through the notification area: you always see at a glance how full your batteries are, and you get warned before one runs empty.
 
-![Kacheln auf der Taskleiste](docs/screenshots/taskbar_main.png)
+**Publisher:** Diabeetus · © 2026 · *Powered by Claude.ai*
+
+![Tiles on the taskbar](docs/screenshots/taskbar_main.png)
 
 ---
 
-## Inhalt
-- [Funktionen im Überblick](#funktionen-im-überblick)
-- [Die Kacheln auf der Taskleiste](#die-kacheln-auf-der-taskleiste)
-- [Einstellungen](#einstellungen)
-  - [Monitor-Reiter](#monitor-reiter--jeder-monitor-einzeln)
-  - [Grenzwerte](#reiter-grenzwerte)
-  - [Einstellungen](#reiter-einstellungen)
-- [Warnung bei niedrigem Akku](#warnung-bei-niedrigem-akku)
-- [Info & Update-Suche](#info--update-suche)
+## Contents
+- [Features at a glance](#features-at-a-glance)
+- [The tiles on the taskbar](#the-tiles-on-the-taskbar)
+- [Settings](#settings)
+  - [Monitor tabs](#monitor-tabs--each-monitor-individually)
+  - [Thresholds](#thresholds-tab)
+  - [Settings](#settings-tab)
+- [Low battery warning](#low-battery-warning)
+- [About & update check](#about--update-check)
 - [Installation](#installation)
-- [Unterstützte Datenquellen](#unterstützte-datenquellen)
-- [Bedienung](#bedienung)
-- [Selbst bauen](#selbst-bauen)
-- [Bekannte Einschränkungen](#bekannte-einschränkungen-alpha)
+- [Supported data sources](#supported-data-sources)
+- [Usage](#usage)
+- [Building it yourself](#building-it-yourself)
+- [Known limitations](#known-limitations-alpha)
 
 ---
 
-## Funktionen im Überblick
+## Features at a glance
 
 | | |
 |---|---|
-| 🖥️ **Mehrere Monitore** | Jeder Monitor bekommt seine eigene Leiste mit eigenen Geräten, eigener Reihenfolge und eigener Breite – auch für Monitore, die gerade ausgeschaltet sind. |
-| 🎨 **Farben nach Akkustand** | Grün / Orange / Rot – die Grenzen stellst du selbst auf einer Farblinie ein. Beim Laden blau. |
-| 💤 **Standby-Erkennung** | Getrennte Geräte oder Geräte im Standby werden grau angezeigt – der zuletzt bekannte Akkustand bleibt sichtbar. |
-| 🔔 **Eigener Alarm** | Eigenes Warnfenster mit Warnton auf allen Monitoren – kommt auch bei *Nicht stören*, stummgeschalteten Benachrichtigungen und im Spielmodus. |
-| 🔊 **Alarm-Ton** | Lautstärke einstellbar, Standard-Warnton, alle Windows-Sounds oder eine eigene Datei (WAV, MP3, WMA, M4A, AAC). |
-| 🌗 **Hell / Dunkel** | Das Fenster passt sich automatisch an den Windows-Modus an (oder fest hell / dunkel). |
-| 🌍 **Sprachen** | Deutsch und Englisch. |
-| 🎮 **Spiele** | Bei Vollbild-Spielen blendet sich die Leiste automatisch aus. |
-| 📌 **Immer sichtbar** | Bleibt auch über Startmenü, Infobereich-Menü und Schnelleinstellungen sichtbar. |
-| 🔌 **Treiber-Erkennung** | Erkennt installierte, kompatible Treiber-Software (z. B. Logitech G HUB) und fragt, ob sie verknüpft werden soll. |
+| 🖥️ **Multiple monitors** | Every monitor gets its own bar with its own devices, order and width – even monitors that are currently switched off. |
+| 🎨 **Colors by battery level** | Green / orange / red – you set the boundaries yourself on a color line. Blue while charging. |
+| 💤 **Standby detection** | Disconnected or sleeping devices are shown in gray – the last known battery level stays visible. |
+| 🔔 **Own alarm** | Its own warning window with a warning sound on all monitors – appears even with *Do not disturb*, muted notifications and in game mode. |
+| 🔊 **Alarm sound** | Adjustable volume, default warning tone, any Windows sound or your own file (WAV, MP3, WMA, M4A, AAC). |
+| 🌗 **Light / dark** | The window follows the Windows light/dark mode automatically (or fixed light / dark). |
+| 🌍 **Languages** | English and German. |
+| 🎮 **Games** | The bar hides automatically during fullscreen games. |
+| 📌 **Always visible** | Stays visible above the Start menu, the notification area menu and Quick Settings. |
+| 🔌 **Driver detection** | Detects installed, compatible driver software (e.g. Logitech G HUB) and asks whether to link it. |
 
 ---
 
-## Die Kacheln auf der Taskleiste
+## The tiles on the taskbar
 
-Die Leiste sitzt links auf der Taskleiste. Jede Kachel zeigt **Symbol, Gerätename, Prozentwert und einen Balken**.
+The bar sits on the left side of the taskbar. Each tile shows **icon, device name, percentage and a bar**.
 
-**Hauptmonitor (Breite 100 %):**
+**Main monitor (width 100 %):**
 
-![Hauptmonitor](docs/screenshots/taskbar_main.png)
+![Main monitor](docs/screenshots/taskbar_main.png)
 
-**Zweiter Monitor mit schmaleren Kacheln (Breite 70 %)** – die Höhe passt sich immer der Taskleiste an, nur die Breite ändert sich. Ist eine Kachel schmal, wird der Balken weggelassen und lange Namen werden gekürzt:
+**Second monitor with narrower tiles (width 70 %)** – the height always matches the taskbar, only the width changes. On narrow tiles the bar is left out and long names are shortened:
 
-![Zweiter Monitor](docs/screenshots/taskbar_second.png)
+![Second monitor](docs/screenshots/taskbar_second.png)
 
-| Farbe | Bedeutung |
+| Color | Meaning |
 |---|---|
-| 🟢 Grün | Akku voll genug (Standard ab 70 %) |
-| 🟠 Orange | mittel (Standard 30–69 %) |
-| 🔴 Rot | niedrig (Standard unter 30 %) – unterhalb der Alarm-Grenze zusätzlich rot hinterlegt |
-| 🔵 Blau | Gerät lädt |
-| ⚪ Grau | Gerät getrennt / im Standby – letzter Akkustand bleibt stehen |
+| 🟢 Green | battery high enough (default from 70 %) |
+| 🟠 Orange | medium (default 30–69 %) |
+| 🔴 Red | low (default below 30 %) – additionally highlighted red below the alarm threshold |
+| 🔵 Blue | device is charging |
+| ⚪ Gray | device disconnected / in standby – last battery level stays visible |
 
-- **Linksklick** auf eine Kachel: sofort aktualisieren
-- **Rechtsklick**: Menü mit *Einstellungen*, *Info*, *Jetzt aktualisieren*, *Beenden*
-
----
-
-## Einstellungen
-
-Öffnen über die Desktop-Verknüpfung **Akku-Anzeige**, per Doppelklick auf das Symbol im Infobereich oder per Rechtsklick auf eine Kachel → *Einstellungen*.
-
-> 💡 Alle Änderungen siehst du **sofort als Vorschau** auf den Kacheln. Gespeichert wird erst mit **Übernehmen** oder **OK** – **Abbrechen** verwirft sie.
-
-### Monitor-Reiter – jeder Monitor einzeln
-
-Für jeden Monitor gibt es einen eigenen Reiter – auch für ausgeschaltete oder abgesteckte Monitore („aus“). Deren Leiste erscheint automatisch, sobald der Monitor eingeschaltet wird.
-
-![Monitor 1](docs/screenshots/tab1.png)
-
-- **Akku-Leiste auf diesem Monitor anzeigen** – Leiste an/aus pro Monitor
-- **Breite der Kacheln** (50–200 %) – die Höhe richtet sich immer nach der Taskleiste
-- **Geräteliste** – alle gefundenen drahtlosen Geräte mit Verbindung und Akkustand
-  - ☑ **Haken** = Gerät wird als Kachel angezeigt
-  - **Reihenfolge** per Maus ziehen oder mit *Nach oben / Nach unten*
-  - **Anzeigename** und **Symbol** (Maus, Tastatur, Kopfhörer, Lautsprecher, Controller, Handy, Bluetooth) frei wählbar
-  - *Geräte neu suchen* – neue Geräte sofort einlesen
-
-Zweiter Monitor mit eigener Breite und eigener Geräteauswahl:
-
-![Monitor 2](docs/screenshots/tab2.png)
-
-Ausgeschalteter Monitor – kann schon vorab eingerichtet werden:
-
-![Monitor 3 (aus)](docs/screenshots/tab3.png)
-
-Über **Monitore identifizieren** erscheint auf jedem Bildschirm kurz eine große Nummer mit Namen, damit du die Reiter zuordnen kannst.
-
-### Reiter „Grenzwerte“
-
-![Grenzwerte](docs/screenshots/tab4.png)
-
-- **Alarm** – ab welchem Akkustand gewarnt wird (5–50 %), mit *Test-Alarm*
-- **Farbbereiche** – eine Linie mit zwei Griffen teilt Rot / Orange / Grün auf; die aktuellen Bereiche stehen darunter
-- **Getrennte Geräte und Geräte im Ruhemodus grau anzeigen** – der letzte Akkustand bleibt sichtbar
-- **Maus/Tastatur auch grau anzeigen, wenn sie unbenutzt sind seit … Minuten** – optional (z. B. wenn die Beleuchtung ausgeht, das Gerät aber noch verbunden ist)
-
-### Reiter „Einstellungen“
-
-![Einstellungen](docs/screenshots/tab5.png)
-
-- **Programm**
-  - *Mit Windows starten*
-  - *Minimiert starten* – nur die Kacheln, ohne Fenster
-  - *Beim Schließen des Fensters (X)*: minimieren (läuft weiter) oder Programm komplett beenden
-- **Darstellung**
-  - *Fensterdesign automatisch an Windows anpassen* (hell / dunkel) oder fest wählen
-  - *Sprache*: Deutsch / English
-- **Alarm-Ton**
-  - *Lautstärke* des Alarms (gilt für jedes Ausgabegerät)
-  - *Sound*: Standard-Warnton, alle Windows-Sounds oder eigene Datei über *Durchsuchen …*
-  - *Ton testen*
-- **Datenquellen** – welche installierte, kompatible Treiber-Software verknüpft ist
+- **Left-click** a tile: refresh immediately
+- **Right-click**: menu with *Settings*, *About*, *Refresh now*, *Exit*
 
 ---
 
-## Warnung bei niedrigem Akku
+## Settings
 
-Fällt ein Gerät unter die Alarm-Grenze, erscheint auf **jedem Monitor** unten rechts ein eigenes Warnfenster – immer im Vordergrund, ohne einem laufenden Spiel den Fokus zu nehmen – zusammen mit dem gewählten Warnton:
+Open via the desktop shortcut **Akku-Anzeige**, by double-clicking the icon in the notification area, or right-click a tile → *Settings*.
 
-![Warnfenster](docs/screenshots/alarm.png)
+> 💡 Every change is shown **immediately as a preview** on the tiles. It is only saved with **Apply** or **OK** – **Cancel** discards it.
 
-Die Warnung läuft **nicht** über das Windows-Benachrichtigungssystem und kommt deshalb auch bei *Nicht stören*, stummgeschalteten Benachrichtigungen und im Spielmodus. Pro Gerät einmal – erneut erst, nachdem es wieder geladen wurde. *OK* schließt alle Warnfenster und stoppt den Ton.
+### Monitor tabs – each monitor individually
+
+There is one tab per monitor – including monitors that are switched off or unplugged ("off"). Their bar appears automatically as soon as the monitor is switched on.
+
+![Monitor 1](docs/screenshots/en/tab1.png)
+
+- **Show battery bar on this monitor** – bar on/off per monitor
+- **Tile width** (50–200 %) – the height always follows the taskbar
+- **Device list** – all wireless devices found, with connection and battery level
+  - ☑ **Checked** = device is shown as a tile
+  - **Order** by dragging with the mouse or with *Move up / Move down*
+  - **Display name** and **icon** (mouse, keyboard, headphones, speaker, controller, phone, Bluetooth) freely selectable
+  - *Search devices* – read in new devices immediately
+
+Second monitor with its own width and its own device selection:
+
+![Monitor 2](docs/screenshots/en/tab2.png)
+
+Switched-off monitor – can be set up in advance:
+
+![Monitor 3 (off)](docs/screenshots/en/tab3.png)
+
+**Identify monitors** briefly shows a large number with the monitor name on every screen, so you can match the tabs to your screens.
+
+### Thresholds tab
+
+![Thresholds](docs/screenshots/en/tab4.png)
+
+- **Alarm** – at which battery level you are warned (5–50 %), with *Test alarm*
+- **Color ranges** – a line with two handles splits red / orange / green; the current ranges are shown below
+- **Show disconnected and sleeping devices in gray** – the last battery level stays visible
+- **Also show mouse/keyboard in gray when unused for … minutes** – optional (e.g. when the lighting turns off but the device is still connected)
+
+### Settings tab
+
+![Settings](docs/screenshots/en/tab5.png)
+
+- **Program**
+  - *Start with Windows*
+  - *Start minimized* – tiles only, without the window
+  - *When closing the window (X)*: minimize (keeps running) or exit the program completely
+- **Appearance**
+  - *Match window design to Windows automatically* (light / dark) or choose a fixed one
+  - *Language*: English / Deutsch
+- **Alarm sound**
+  - *Alarm volume* (applies to every output device)
+  - *Sound*: default warning tone, any Windows sound, or your own file via *Browse …*
+  - *Test sound*
+- **Data sources** – which installed, compatible driver software is linked
 
 ---
 
-## Info & Update-Suche
+## Low battery warning
 
-Über **ⓘ Info** im Einstellungsfenster (oder Rechtsklick → *Info*):
+When a device drops below the alarm threshold, a warning window appears at the bottom right of **every monitor** – always on top, without taking focus away from a running game – together with the chosen warning sound:
 
-![Info](docs/screenshots/info.png)
+![Warning window](docs/screenshots/en/alarm.png)
 
-- Version, Hersteller, Datenquellen und erkannte Treiber-Software
-- **Nach Updates suchen** – fragt die Releases dieses Projekts ab *(funktioniert, sobald das Projekt öffentlich ist)*
-- **Website öffnen** – öffnet diese Seite
+The warning does **not** use the Windows notification system, so it also appears with *Do not disturb*, muted notifications and in game mode. Once per device – again only after it has been charged. *OK* closes all warning windows and stops the sound.
+
+---
+
+## About & update check
+
+Via **ⓘ About** in the settings window (or right-click → *About*):
+
+![About](docs/screenshots/en/info.png)
+
+- Version, publisher, data sources and detected driver software
+- **Check for updates** – queries the releases of this project *(works once the project is public)*
+- **Open website** – opens this page
 
 ---
 
 ## Installation
 
-1. Unter **Releases** die Datei `AkkuAnzeige-Setup-<version>.exe` herunterladen und starten.
-2. Das Setup zeigt die **installierte, kompatible Treiber-Software** – mit Haken wird sie verknüpft.
-3. Optionen wählen (Desktop-Verknüpfung, Startmenü, Mit Windows starten) → **Installieren**.
+1. Download `AkkuAnzeige-Setup-<version>.exe` from **[Releases](https://github.com/Diabeetus94/Battery-Monitoring/releases)** and run it.
+2. The setup lists the **installed, compatible driver software** – checked entries are linked.
+3. Choose options (desktop shortcut, Start menu, start with Windows) → **Install**.
 
-![Setup](docs/screenshots/setup.png)
+![Setup](docs/screenshots/en/setup.png)
 
-- Installiert nach `C:\Program Files\AkkuAnzeige`, Eintrag unter *Apps & Features* zum Deinstallieren.
-- Ist schon eine Version installiert, wird sie **aktualisiert** – Einstellungen bleiben erhalten.
-- Wird kompatible Software erst **nach** der Installation installiert, fragt die Akku-Anzeige von selbst, ob sie verknüpft werden soll.
+- Installs to `C:\Program Files\AkkuAnzeige`, with an entry in *Apps & features* for uninstalling.
+- If a version is already installed, it is **updated** – your settings are kept.
+- If compatible software is installed **after** the installation, Akku-Anzeige asks on its own whether to link it.
+- The setup follows the Windows language; force a language with `/lang=en` or `/lang=de`.
 
-> ℹ️ Damit die Kacheln auch über Startmenü und Taskleisten-Menüs sichtbar bleiben, nutzt die App die Windows-Funktion *UIAccess*. Dafür trägt das Setup das eigene Zertifikat der Akku-Anzeige als vertrauenswürdig ein – bei der Deinstallation wird es wieder entfernt.
+> ℹ️ To keep the tiles visible above the Start menu and taskbar menus, the app uses the Windows *UIAccess* feature. For this, the setup adds Akku-Anzeige's own certificate to Windows' trusted certificates – it is removed again on uninstall. Windows may show "Windows protected your PC" on first launch: click **More info → Run anyway**.
 
 ---
 
-## Unterstützte Datenquellen
+## Supported data sources
 
-| Quelle | Status | Was wird gelesen |
+| Source | Status | What is read |
 |---|---|---|
-| **Logitech G HUB** | ✅ kompatibel | Akkustand, Laden, Aktiv / Standby / Aus |
-| **Windows-Bluetooth** (eingebaut) | ✅ kompatibel | Akkustand von Kopfhörern, Lautsprechern, Handys … |
-| **LGSTray** | ✅ Ersatzquelle | Logitech-Akkustände, falls G HUB nicht läuft |
-| Razer Synapse, Corsair iCUE, SteelSeries GG, HyperX NGENUITY, ASUS Armoury Crate, Logitech Options+ | 🔍 wird erkannt | Akkustände noch nicht unterstützt |
+| **Logitech G HUB** | ✅ compatible | battery level, charging, active / standby / off |
+| **Windows Bluetooth** (built in) | ✅ compatible | battery level of headphones, speakers, phones … |
+| **LGSTray** | ✅ fallback | Logitech battery levels if G HUB is not running |
+| Razer Synapse, Corsair iCUE, SteelSeries GG, HyperX NGENUITY, ASUS Armoury Crate, Logitech Options+ | 🔍 detected | battery levels not supported yet |
 
 ---
 
-## Bedienung
+## Usage
 
-| Aktion | Wie |
+| Action | How |
 |---|---|
-| Einstellungen öffnen | Desktop-Verknüpfung · Doppelklick auf Infobereich-Symbol · Rechtsklick auf Kachel |
-| Sofort aktualisieren | Linksklick auf eine Kachel |
-| Reiter wechseln | Klick oder `Strg + Tab` |
-| Programm beenden | Rechtsklick auf Kachel oder Infobereich-Symbol → *Beenden* |
-| Deinstallieren | *Einstellungen → Apps → Akku-Anzeige → Deinstallieren* |
+| Open settings | desktop shortcut · double-click the notification area icon · right-click a tile |
+| Refresh immediately | left-click a tile |
+| Switch tabs | click or `Ctrl + Tab` |
+| Exit | right-click a tile or the notification area icon → *Exit* |
+| Uninstall | *Settings → Apps → Akku-Anzeige → Uninstall* |
 
-Einstellungen werden unter `%APPDATA%\AkkuAnzeige\settings.json` gespeichert.
+Settings are stored in `%APPDATA%\AkkuAnzeige\settings.json`.
 
 ---
 
-## Selbst bauen
+## Building it yourself
 
-Voraussetzungen: Windows 10/11 mit .NET Framework 4.8 (der eingebaute Compiler `csc.exe` reicht – kein Visual Studio nötig).
+Requirements: Windows 10/11 with .NET Framework 4.8 (the built-in compiler `csc.exe` is enough – no Visual Studio needed).
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File src\build.ps1 -noinstall
 ```
 
-Das Skript kompiliert App und Setup, signiert beide mit dem lokalen Zertifikat „Akku-Anzeige Code Signing (lokal)“ und legt das Setup unter `Setup\` ab. Ohne `-noinstall` wird zusätzlich lokal nach `Program Files` installiert (UAC-Abfrage).
+The script compiles the app and the setup, signs both with the local certificate "Akku-Anzeige Code Signing (lokal)" and puts the setup into `Setup\`. Without `-noinstall` it also installs locally to `Program Files` (UAC prompt).
 
-| Datei | Inhalt |
+| File | Content |
 |---|---|
-| `src/AkkuAnzeige.cs` | Datenquellen (G HUB, LGSTray, Bluetooth), Monitor-Erkennung, Eingabe-Aktivität |
-| `src/Ui.cs` | Kacheln, Einstellungsfenster, Design, Alarm |
-| `src/Info.cs` | Info-Fenster und Update-Suche |
-| `src/Lang.cs` | Übersetzungen |
-| `src/Vendors.cs` | Erkennung installierter Treiber-Software, Verknüpfungen |
-| `src/Setup.cs` | Installationsprogramm |
-| `src/AssemblyInfo.cs` | Version und Hersteller (gemeinsam für App und Setup) |
+| `src/AkkuAnzeige.cs` | data sources (G HUB, LGSTray, Bluetooth), monitor detection, input activity |
+| `src/Ui.cs` | tiles, settings window, design, alarm |
+| `src/Info.cs` | About window and update check |
+| `src/Lang.cs` | translations |
+| `src/Vendors.cs` | detection of installed driver software, links |
+| `src/Setup.cs` | installer |
+| `src/AssemblyInfo.cs` | version and publisher (shared by app and setup) |
 
 ---
 
-## Bekannte Einschränkungen (Alpha)
+## Known limitations (Alpha)
 
-- Akkustände von Razer, Corsair, SteelSeries, HyperX und ASUS werden noch nicht gelesen.
-- Bei Spielen im **exklusiven** Vollbild kann kein Fenster darüber erscheinen – dort hörst du nur den Warnton (randloses Vollbild funktioniert).
-- Logitech-Standby wird erkannt, sobald sich das Gerät vom Empfänger trennt; wenn nur die Beleuchtung ausgeht, gilt es noch als aktiv (optional einstellbar).
-- Die automatische Update-Suche funktioniert erst, wenn dieses Projekt öffentlich ist.
+- Battery levels from Razer, Corsair, SteelSeries, HyperX and ASUS are not read yet.
+- In games running in **exclusive** fullscreen no window can appear on top – you only hear the warning sound there (borderless fullscreen works).
+- Logitech standby is detected as soon as the device disconnects from its receiver; if only the lighting turns off, it still counts as active (optionally adjustable).
+- The automatic update check only works once this project is public.
 
 ---
 

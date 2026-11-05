@@ -16,7 +16,8 @@ namespace AkkuAnzeige
 {
     static class SetupProgram
     {
-        public static readonly bool De = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de";
+        // Sprache: Windows-Sprache, ueberschreibbar mit /lang=de bzw. /lang=en
+        public static bool De = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "de";
         public static string S(string de, string en) { return De ? de : en; }
 
         public static string InstallDir { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AkkuAnzeige"); } }
@@ -45,6 +46,8 @@ namespace AkkuAnzeige
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            if (args.Any(a => a.Equals("/lang=en", StringComparison.OrdinalIgnoreCase))) De = false;
+            if (args.Any(a => a.Equals("/lang=de", StringComparison.OrdinalIgnoreCase))) De = true;
             if (args.Any(a => a.Equals("/uninstall", StringComparison.OrdinalIgnoreCase))) { Uninstall(args.Any(a => a.Equals("/quiet", StringComparison.OrdinalIgnoreCase))); return; }
             Application.Run(new SetupForm());
         }
